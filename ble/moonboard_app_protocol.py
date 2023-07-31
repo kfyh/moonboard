@@ -50,35 +50,37 @@ class UnstuffSequence():
         process new incoming bytes and return if new problem is available. 
         handle some error due to multiple connected devices sending simoultaneously.
         """
-
-        s = bytearray.fromhex(ba).decode()
-        self.logger.debug("incoming bytes:"+str(s))
-        
-        if s[0] == '~' and s[-1] == '*':
-            # Flag processing
-            self.flags=s[1:-1]
-            if s.find("M") != -1:
-                self.logger.debug('MINI')
-            if s.find("D") != -1:
-                self.logger.debug('BothLights')
-        elif s[:2]==self.START:
-            self.logger.debug('START')
-            if self.s =='':
-                if s[-1]==self.STOP:
-                    return s[2:-1]
+        try: 
+            s = bytearray.fromhex(ba).decode()
+            self.logger.debug("incoming bytes:"+str(s))
+            
+            if s[0] == '~' and s[-1] == '*':
+                # Flag processing
+                self.flags=s[1:-1]
+                if s.find("M") != -1:
+                    self.logger.debug('MINI')
+                if s.find("D") != -1:
+                    self.logger.debug('BothLights')
+            elif s[:2]==self.START:
+                self.logger.debug('START')
+                if self.s =='':
+                    if s[-1]==self.STOP:
+                        return s[2:-1]
+                    else:
+                        self.s=s[2:]
                 else:
-                    self.s=s[2:]
+                    self.logger.debug('error: alredy started')
+                    self.s= ''
+            elif s[-1]==self.STOP:
+                self.logger.debug('STOP')
+                if self.s!='':
+                    ret = self.s+s[:-1]
+                    self.s=''
+                    return ret
+                else:
+                    self.logger.debug('error: not started')
+                    self.s= ''
             else:
-                self.logger.debug('error: alredy started')
-                self.s= ''
-        elif s[-1]==self.STOP:
-            self.logger.debug('STOP')
-            if self.s!='':
-                ret = self.s+s[:-1]
-                self.s=''
-                return ret
-            else:
-                self.logger.debug('error: not started')
-                self.s= ''
-        else:
-            self.s+=s
+                self.s+=s
+        except:
+            self.logger.error('Cannot process bytes: ' + ba)
