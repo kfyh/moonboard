@@ -1,5 +1,6 @@
 [Unit]
 Description=Moonboard DBUS Service
+Requires=dbus.socket
 After=multi-user.target
 SystemdService=dbus-org.com.moonbooard.service
 
@@ -11,4 +12,4 @@ User=root
 
 [Install]
 WantedBy=multi-user.target
-
+Also=dbus.socket
