@@ -191,12 +191,8 @@ def main(logger,adapter):
 
     logger.info("Bluetooth adapter: "+ str(adapter))
 
-    try:
-        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-        bus = dbus.SystemBus()
-    except:
-        logger.error('Error getting System Bus')
-        sys.exit(3)
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    bus = dbus.SystemBus()
 
     try:
         bus_name = dbus.service.BusName(SERVICE_NAME,
@@ -205,27 +201,23 @@ def main(logger,adapter):
     except dbus.exceptions.NameExistsException:
         sys.exit(1)
 
-    try:
-        app = MoonApplication(bus_name,None,logger)    
+    app = MoonApplication(bus_name,None,logger)    
 
-        service_manager = dbus.Interface(
-                                    bus.get_object(BLUEZ_SERVICE_NAME, adapter),
-                                    GATT_MANAGER_IFACE)
+    service_manager = dbus.Interface(
+                                bus.get_object(BLUEZ_SERVICE_NAME, adapter),
+                                GATT_MANAGER_IFACE)
 
+ 
+    loop = GLib.MainLoop()
+
+    logger.info('app path: '+ app.get_path())
+
+    service_manager.RegisterApplication(app.get_path(), {},
+                                        reply_handler=register_app_cb,
+                                        error_handler=register_app_error_cb)
     
-        loop = GLib.MainLoop()
-
-        logger.info('app path: '+ app.get_path())
-
-        service_manager.RegisterApplication(app.get_path(), {},
-                                            reply_handler=register_app_cb,
-                                            error_handler=register_app_error_cb)
-        
-        setup_adv(logger)
-        start_adv(logger)
-    except:
-        logger.error('Error setting up moonboard app and loop');
-        sys.exit(2)
+    setup_adv(logger)
+    start_adv(logger)
 
     # Run the loop
     try:
