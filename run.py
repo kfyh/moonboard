@@ -16,7 +16,7 @@ import logging
 
 
 # external power LED and power button
-LED_GPIO = 26
+LED_GPIO = 18
 BUTTON_GPIO = 3
 
 
@@ -37,10 +37,10 @@ if __name__ == "__main__":
 
     # Comment out button stuff - yet...
     # # BUTTON + LED setup
-    # GPIO.setmode(GPIO.BCM)
-    # GPIO.setwarnings(False)
-    # GPIO.setup(LED_GPIO, GPIO.OUT)
-    # GPIO.output(LED_GPIO,1)
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setwarnings(False)
+    GPIO.setup(LED_GPIO, GPIO.OUT)
+    GPIO.output(LED_GPIO,1)
     # GPIO.setup(BUTTON_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     # # interupt handling for the power button
     # GPIO.add_event_detect(BUTTON_GPIO, GPIO.RISING,
