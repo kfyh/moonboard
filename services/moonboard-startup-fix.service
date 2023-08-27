@@ -1,0 +1,10 @@
+[Unit]
+Description=moonboard app fix startup service
+After=multi-user.target
+
+[Service]
+Type=idle
+ExecStart=/bin/bash -c 'sleep 10 && /bin/bash /home/pi/moonboard/scripts/fix_startup.sh'
+
+[Install]
+WantedBy=multi-user.target

@@ -1,12 +1,13 @@
-
 [Unit]
-Description= moon board app service
-After=multi-user.target 
+Description=moon board app service
+After=multi-user.target
 
 [Service]
+WorkingDirectory=/home/pi/
 User=pi
 Type=idle
 ExecStart=/bin/bash /home/pi/moonboard/scripts/run.sh
+Environment="PYTHONPATH=$PYTHONPATH:/home/pi/.local/lib/python3.9/site-packages"
 
 [Install]
 WantedBy=multi-user.target
