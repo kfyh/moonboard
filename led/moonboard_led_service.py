@@ -85,11 +85,13 @@ if __name__ == "__main__":
     print(f"Driver type:{args.driver_type}")
 
     print("Led Layout Test,")
-    MOONBOARD.led_layout_test(args.duration) 
+    MOONBOARD.led_layout_test() 
 
-    # Display a holdset
-    MOONBOARD.display_holdset(args.holdset, args.duration)
-    
+    # Display the holdsets
+    MOONBOARD.display_holdset('Moonboard2016', 'Hold Set A', 5)
+    MOONBOARD.display_holdset('Moonboard2016', 'Hold Set B', 5)
+    MOONBOARD.display_holdset('Moonboard2016', 'Original School Holds', 5)
+
     MOONBOARD.clear()
 
     # connect to dbus signal new problem
