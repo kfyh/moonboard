@@ -92,7 +92,7 @@ class MoonBoard:
                     self.layout.push_to_driver()
                     time.sleep(duration)
         
-    def display_holdset(self, setup='Moonboard2016', holdset="Hold Set A", duration=10, **kwds): 
+    def display_holdset(self, setup=DEFAULT_SETUP, holdset="Hold Set A", duration=10, **kwds): 
         print ("Display holdset: " + str(holdset))
 
         with open('../problems/HoldSetup.json') as json_file: # FIXME: path 
