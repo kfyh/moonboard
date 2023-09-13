@@ -52,7 +52,7 @@ class Database():
 
 
 
-    def _record_data(self, hostname="localhost",port=1883):
+    def _record_data(self, hostname="raspberrypi.local",port=1883):
         logging.debug("Start recording data from mqtt to database")
         self._client= paho.Client("client-001")  # FIXME
         self._client.on_message=self._on_message
