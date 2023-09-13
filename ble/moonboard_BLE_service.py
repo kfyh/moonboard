@@ -1,4 +1,6 @@
 import sys
+import dbus, dbus.mainloop.glib
+from gi.repository import GLib
 from gatt_base.gatt_lib_advertisement import Advertisement
 from gatt_base.gatt_lib_characteristic import Characteristic
 from gatt_base.gatt_lib_service import Service
@@ -6,15 +8,11 @@ import string,json
 import subprocess
 import logging
 from moonboard_app_protocol import UnstuffSequence, decode_problem_string
-import paho.mqtt.client as mqtt
 
 import os
 import threading
 import pty
  
-# FIXME: remove dead code
-# FIXME: cleanup code & simplify(!)
-
 BLUEZ_SERVICE_NAME =           'org.bluez'
 DBUS_OM_IFACE =                'org.freedesktop.DBus.ObjectManager'
 LE_ADVERTISING_MANAGER_IFACE = 'org.bluez.LEAdvertisingManager1'
@@ -25,8 +23,7 @@ UART_RX_CHARACTERISTIC_UUID =  '6e400002-b5a3-f393-e0a9-e50e24dcca9e'
 UART_TX_CHARACTERISTIC_UUID =  '6e400003-b5a3-f393-e0a9-e50e24dcca9e'
 LOCAL_NAME =                   'Moonboard A'
 SERVICE_NAME=                  'com.moonboard'
-
-# FIXME: on connection lost: error: UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 2: invalid start byte
+mainloop = None
 
 class RxCharacteristic(Characteristic):
     def __init__(self, bus, index, service, process_rx):
@@ -41,10 +38,9 @@ class RxCharacteristic(Characteristic):
 class UartService(Service):
     def __init__(self, bus,path, index, process_rx):
         Service.__init__(self, bus,path, index, UART_SERVICE_UUID, True)
-        self.add_characteristic(RxCharacteristic(bus, 1, self, process_rx))   
+        self.add_characteristic(RxCharacteristic(bus, 1, self, process_rx))       
 
-
-class OutStream: # FIXME: simplify
+class OutStream:
     def __init__(self, fileno):
         self._fileno = fileno
         self._buffer = b""
@@ -75,49 +71,21 @@ class OutStream: # FIXME: simplify
         
         return finished_lines, readable
 
-class MoonboardBLE():
-    def __init__(self):
-        self._start_mqtt()
-        return
 
-    def setup_adv(self,logger):
-        """
-        Setup Advertisinf"""
-        logger.info('setup adv')
-        setup_adv = [
-        "hcitool -i hci0 cmd 0x08 0x000a 00",
-        "hcitool -i hci0 cmd 0x08 0x0008 18 02 01 06 02 0a 00 11 07 9e ca dc 24 0e e5 a9 e0 93 f3 a3 b5 01 00 40 6e 00 00 00 00 00 00 00",
-        "hcitool -i hci0 cmd 0x08 0x0009 0d 0c 09 4d 6f 6f 6e 62 6f 61 72 64 20 41",
-        "hcitool -i hci0 cmd 0x08 0x0006 80 02 c0 03 00 00 00 00 00 00 00 00 00 07 00"
-        ]
-        for c in setup_adv:
-            os.system("sudo "+ c) 
+class MoonApplication(dbus.service.Object):
+    IFACE = "com.moonboard.method"
+    def __init__(self, bus, socket,logger):
+        self.path = '/com/moonboard'
+        self.services = []
+        self.logger=logger
+        self.unstuffer= UnstuffSequence(self.logger)
+        dbus.service.Object.__init__(self, bus, self.path)
+        self.add_service(UartService(bus,self.get_path(), 0, self.process_rx)) 
 
-    def start_adv(self,logger,start=True):
-        """
-        Start Advertising 
-        """
-        if start:
-            start='01'
-            logger.info('start adv')
-        else:
-            start='00'
-            logger.info('stop adv')
-        start_adv= "hcitool -i hci0 cmd 0x08 0x000a {}".format(start)
-        os.system("sudo " +start_adv) 
+        monitor_thread = threading.Thread(target=self.monitor_btmon)  
+        monitor_thread.start()
 
-    def process_rx(self, unstuffer,logger,ba):
-        new_problem_string= unstuffer.process_bytes(ba)
-        flags = unstuffer.flags
-
-        if new_problem_string is not None:
-            problem= decode_problem_string(new_problem_string, flags)
-            print(json.dumps(problem)) # FIXME
-            self._sendmessage("/problem", json.dumps(problem)) # FIXME
-            unstuffer.flags = ''
-            self.start_adv(logger)
-
-    def monitor_btmon(self, logger, unstuffer): 
+    def monitor_btmon(self): 
         out_r, out_w = pty.openpty()
         cmd = ["sudo","btmon"]
         process = subprocess.Popen(cmd, stdout=out_w)
@@ -130,35 +98,138 @@ class MoonboardBLE():
                     line = line.decode()
                     if 'Data:' in line:
                         data = line.replace(' ','').replace('\x1b','').replace('[0m','').replace('Data:','')
-                        self.process_rx(unstuffer,logger,data)
-                        t1 = bytearray.fromhex(data).decode(errors="ignore")
-                        logger.info('New data '+ data+ 'and decoded '+t1)
+                        self.process_rx(data)
+                        self.logger.info('New data '+ data)
+
+    def process_rx(self,ba):
+        new_problem_string= self.unstuffer.process_bytes(ba)
+        flags = self.unstuffer.flags
+
+        if new_problem_string is not None:
+            problem= decode_problem_string(new_problem_string, flags)
+            self.new_problem(json.dumps(problem))
+            self.unstuffer.flags = ''
+            start_adv(self.logger)
+
+    @dbus.service.signal(dbus_interface="com.moonboard",
+                            signature="s")
+    def new_problem(self, problem):
+        self.logger.info('Signal new problem: '+ str(problem))
+
+    def get_path(self):
+        return dbus.ObjectPath(self.path)
+
+    def add_service(self, service):
+        self.services.append(service)
+
+    @dbus.service.method(DBUS_OM_IFACE, out_signature='a{oa{sa{sv}}}')
+    def GetManagedObjects(self):
+        response = {}
+        for service in self.services:
+            response[service.get_path()] = service.get_properties()
+            chrcs = service.get_characteristics()
+            for chrc in chrcs:
+                response[chrc.get_path()] = chrc.get_properties()
+        return response
+
+def register_app_cb():
+    print('GATT application registered')
 
 
-    def main(self,logger,adapter):
-        logger.info("Bluetooth adapter: "+ str(adapter))
-        
-        unstuffer= UnstuffSequence(logger)
+def register_app_error_cb(error):
+    print('Failed to register application: ' + str(error))
+    mainloop.quit()
 
-        self.setup_adv(logger)
-        self.start_adv(logger)
-        self.monitor_btmon(logger,unstuffer)
 
-    def _start_mqtt(self):
-        # Connect to MQTT
-        hostname = "raspberrypi.local" # FIXME
-        port = 1883 # FIXME
-        self._client = mqtt.Client()
-        self._client.connect(hostname, port,60)
-        self._sendmessage("/status", "Starting")
+def run(*popenargs, **kwargs):
+    input = kwargs.pop("input", None)
+    check = kwargs.pop("handle", False)
+
+    if input is not None:
+        if 'stdin' in kwargs:
+            raise ValueError('stdin and input arguments may not both be used.')
+        kwargs['stdin'] = subprocess.PIPE
+
+    process = subprocess.Popen(*popenargs, **kwargs)
+    try:
+        stdout, stderr = process.communicate(input)
+    except:
+        process.kill()
+        process.wait()
+        raise
+    retcode = process.poll()
+    if check and retcode:
+        raise subprocess.CalledProcessError(
+            retcode, process.args, output=stdout, stderr=stderr)
+    return retcode, stdout, stderr
+
+
+def setup_adv(logger):
+    logger.info('setup adv')
+    setup_adv = [
+    "hcitool -i hci0 cmd 0x08 0x000a 00",
+    "hcitool -i hci0 cmd 0x08 0x0008 18 02 01 06 02 0a 00 11 07 9e ca dc 24 0e e5 a9 e0 93 f3 a3 b5 01 00 40 6e 00 00 00 00 00 00 00",
+    "hcitool -i hci0 cmd 0x08 0x0009 0d 0c 09 4d 6f 6f 6e 62 6f 61 72 64 20 41",
+    "hcitool -i hci0 cmd 0x08 0x0006 80 02 c0 03 00 00 00 00 00 00 00 00 00 07 00"
+    ]
+    for c in setup_adv:
+        run("sudo "+ c, shell=True)
+
+
+def start_adv(logger,start=True):
+    if start:
+        start='01'
+        logger.info('start adv')
+    else:
+        start='00'
+        logger.info('stop adv')
+    start_adv= "hcitool -i hci0 cmd 0x08 0x000a {}".format(start)
+    run("sudo " +start_adv, shell=True)
+
+def main(logger,adapter):
+    global mainloop
+
+    logger.info("Bluetooth adapter: "+ str(adapter))
+
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    bus = dbus.SystemBus()
+
+    try:
+        bus_name = dbus.service.BusName(SERVICE_NAME,
+                                        bus=bus,
+                                        do_not_queue=True)
+    except dbus.exceptions.NameExistsException:
+        sys.exit(1)
+
+    app = MoonApplication(bus_name,None,logger)    
+
+    service_manager = dbus.Interface(
+                                bus.get_object(BLUEZ_SERVICE_NAME, adapter),
+                                GATT_MANAGER_IFACE)
+
  
-    def _sendmessage(self, topic="/none", message="None"):
-        ttopic = "moonboard/ble"+topic
-        mmessage = str(message)
-        #logging.debug("MQTT>: " + ttopic + " ###> " + mmessage)
-        self._client.publish(ttopic, mmessage)
+    loop = GLib.MainLoop()
 
+    logger.info('app path: '+ app.get_path())
 
+    service_manager.RegisterApplication(app.get_path(), {},
+                                        reply_handler=register_app_cb,
+                                        error_handler=register_app_error_cb)
+    
+    setup_adv(logger)
+    start_adv(logger)
+
+    # Run the loop
+    try:
+        loop.run()
+    except KeyboardInterrupt:
+        print("keyboard interrupt received")
+    except Exception as e:
+        print("Unexpected exception occurred: '{}'".format(str(e)))
+    finally:
+        loop.quit()
+
+ 
 if __name__ == '__main__':
     
     import argparse
@@ -177,5 +248,4 @@ if __name__ == '__main__':
     else:
         logger.setLevel(logging.INFO)
 
-    mbble = MoonboardBLE()
-    mbble.main(logger,adapter='/org/bluez/hci0') # FIXME: use configured adapter
+    main(logger,adapter='/org/bluez/hci0')

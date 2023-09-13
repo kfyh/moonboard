@@ -1,73 +1,53 @@
 # -*- coding: utf-8 -*-
 import argparse
-from moonboard import MoonBoard
+from led.moonboard import MoonBoard
+from gi.repository import GLib
+import dbus
+from dbus.mainloop.glib import DBusGMainLoop
 from functools import partial
+import json 
 import json
 import RPi.GPIO as GPIO
 import os
 #import signal
 import sys
 import logging
-import time
-import paho.mqtt.client as paho # FIXME pip install 
-import math # floor
+
+
 
 # external power LED and power button
-LED_GPIO = 26
+LED_GPIO = 18
 BUTTON_GPIO = 3
 
 
-import logging
-logging.basicConfig(level=logging.DEBUG,
-                    format='Display(%(threadName)-10s) %(message)s',
-                    )
-
-class Database():
-    def __init__(self, driver_type="", led_layout=""):
-        self._MOONBOARD = MoonBoard(driver_type, led_layout)
-
-        # Init timers
-        self._time_current = time.time()
-        self._time_last = self._time_current 
-        self._update_interval = 1.0 #0.5 # Update interval for display in seconds
+# Button function
+def button_pressed_callback(channel):
+    print("Button pressed") 
+    MOONBOARD.clear()
+    #print('Shutting down')
+    #os.system("sudo shutdown -h now")
 
 
-    def _on_message(self, client, userdata, message):
-        logging.debug("Received message " + str(message.payload.decode("utf-8")))
-        #mm = message.payload.decode("utf-8")
-        msg = json.loads(message.payload.decode("utf-8"))
-
-        color_start = (0,255,0)
-        color_moves = (0,0,255)
-        color_top = (255,0,0)
-        self._MOONBOARD.clear()
-        for s in msg["START"]:
-            self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[s], color_start)
-        for m in msg["MOVES"]:
-            self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[m], color_moves)        
-        for t in msg["TOP"]:
-            self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[t], color_top)
-        #self._MOONBOARD.layout.set(self._MOONBOARD.MAPPING[ihold], color_1er_done)
-        self._MOONBOARD.layout.push_to_driver()
-
-
-
-    def _record_data(self, hostname="raspberrypi.local",port=1883):
-        logging.debug("Start recording data from mqtt to database")
-        self._client= paho.Client("client-001")  # FIXME
-        self._client.on_message=self._on_message
-        self._client.connect(hostname,port,60)#connect
-
-        # FIXME: subscribe to all?
-        
-        self._client.subscribe("moonboard/ble/problem")
-
-
-        self._client.loop_forever()
-
-# Main stuff
+def new_problem_cb(mb,holds_string):
+        holds = json.loads(holds_string)
+        mb.show_problem(holds)
+        logger.debug('new_problem: '+holds_string)
 
 if __name__ == "__main__":
+
+    # Comment out button stuff - yet...
+    # # BUTTON + LED setup
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setwarnings(False)
+    GPIO.setup(LED_GPIO, GPIO.OUT)
+    GPIO.output(LED_GPIO,1)
+    # GPIO.setup(BUTTON_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    # # interupt handling for the power button
+    # GPIO.add_event_detect(BUTTON_GPIO, GPIO.RISING,
+    #     callback=button_pressed_callback, bouncetime=300)
+
+    # #signal.signal(signal.SIGINT, signal_handler)
+    # #signal.pause()
 
     parser = argparse.ArgumentParser(description='')
 
@@ -85,6 +65,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--debug',  action = "store_true")
 
+
     args = parser.parse_args()
     argsd=vars(args)
     logger = logging.getLogger('run')
@@ -96,9 +77,38 @@ if __name__ == "__main__":
     else:
         logger.setLevel(logging.INFO)
 
-    #problems
-    led_layout = args.led_mapping
-    driver_type = args.driver_type
+    MOONBOARD = MoonBoard(
+        args.driver_type,
+        args.led_mapping)
 
-    d = Database(driver_type=driver_type, led_layout=led_layout)
-    d._record_data(hostname="raspi-moonboard")   
+    print(f"Led mapping:{args.led_mapping}")
+    print(f"Driver type:{args.driver_type}")
+
+    print("Led Layout Test,")
+    MOONBOARD.led_layout_test(args.duration) 
+
+    # Display a holdset
+    MOONBOARD.display_holdset(args.holdset, args.duration)
+    
+    MOONBOARD.clear()
+
+    # connect to dbus signal new problem
+    dbml = DBusGMainLoop(set_as_default=True)
+
+    bus = dbus.SystemBus()
+    proxy = bus.get_object('com.moonboard','/com/moonboard')
+
+    proxy.connect_to_signal('new_problem', partial(new_problem_cb, MOONBOARD))
+    loop = GLib.MainLoop()
+
+    dbus.set_default_main_loop(dbml)
+
+    # Run the loop
+    try:
+        loop.run()
+    except KeyboardInterrupt:
+        print("keyboard interrupt received")
+    except Exception as e:
+        print("Unexpected exception occurred: '{}'".format(str(e)))
+    finally:
+        loop.quit()

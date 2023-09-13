@@ -1,6 +1,6 @@
 [Unit]
 Description=Moonboard LED Service
-After=multi-user.target mosquitto.service
+After=multi-user.target
 
 [Service]
 WorkingDirectory=/home/pi/moonboard/led/

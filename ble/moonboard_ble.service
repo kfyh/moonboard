@@ -1,12 +1,13 @@
 [Unit]
-Description=Moonboard BLE Service
-After=multi-user.target bluetooth.service hciuart.service mosquitto.service
+Description=Moonboard BLE DBUS Service
+After=multi-user.target bluetooth.service dbus.service hciuart.service 
 
 [Service]
-WorkingDirectory=/home/pi/moonboard/ble/
+Type=dbus
+BusName=com.moonboard
 ExecStart=/usr/bin/python3 /home/pi/moonboard/ble/moonboard_ble_service.py 
-Type=idle
 User=root
+SystemdService=dbus-org.com.moonbooard.service
 Restart=on-failure
 RestartSec=5s
 StandardOutput=file:/var/log/moonboard_ble_stdout.log
@@ -14,3 +15,4 @@ StandardError=file:/var/log/moonboard_ble_stderr.log
 
 [Install]
 WantedBy=multi-user.target
+

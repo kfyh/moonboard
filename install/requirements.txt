@@ -25,12 +25,12 @@ Pillow==8.3.2
 pylint==2.3.1
 pyserial==3.4
 python-dateutil==2.8.0
-PyYAML==5.4
+PyYAML==5.4.1
 requests==2.21.0
 six==1.12.0
 smmap2==2.0.5
 soupsieve==1.9.1
-urllib3==1.26.5
+urllib3
 websockets==9.1
 Werkzeug==0.15.3
 wrapt==1.11.1
@@ -39,4 +39,3 @@ python-periphery
 rpi-ws281x==4.2.2
 colormap
 easydev
-paho-mqtt
