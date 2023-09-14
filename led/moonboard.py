@@ -83,9 +83,9 @@ class MoonBoard:
         self.layout.push_to_driver()
 
     def led_layout_test(self, duration=0.025, **kwds):
-        for c in range (0, self.COLS):
+        for c in range (65, 65 + self.COLS):
             for j in range (1,self.ROWS+1):
-                h = c+str(j)
+                h = chr(c)+str(j)
                 print (h)
                 for color in [COLORS.red, COLORS.blue]:
                     self.layout.set(self.MAPPING[h], color)
@@ -133,7 +133,7 @@ if __name__=="__main__":
     parser.add_argument('--led_mapping', type=str,
                         help='Relative path JSON file containing the led mapping.',
                         default = "led_mapping.json")                   
-    parser.add_argument('--duration',  type=int, default=25,
+    parser.add_argument('--duration',  type=float, default=0.025,
                         help='Delay of progress.')
     parser.add_argument('--holdset',  type=str, help="Display a holdset for current layout", 
                         choices=['Hold Set A', 'Hold Set B', 'Hold Set C', 'Original School Holds', "Wooden Holds"],
@@ -148,7 +148,7 @@ if __name__=="__main__":
     MOONBOARD = MoonBoard(args.driver_type,args.led_mapping )
 
     print("Led Layout Test,")
-    MOONBOARD.led_layout_test(args.duration/1000) 
+    MOONBOARD.led_layout_test(args.duration) 
 
     # Display a holdset
     MOONBOARD.display_holdset(args.setup, args.holdset, args.duration)
