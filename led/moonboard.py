@@ -133,7 +133,7 @@ if __name__=="__main__":
     parser.add_argument('--led_mapping', type=str,
                         help='Relative path JSON file containing the led mapping.',
                         default = "led_mapping.json")                   
-    parser.add_argument('--duration',  type=int, default=0.025,
+    parser.add_argument('--duration',  type=int, default=25,
                         help='Delay of progress.')
     parser.add_argument('--holdset',  type=str, help="Display a holdset for current layout", 
                         choices=['Hold Set A', 'Hold Set B', 'Hold Set C', 'Original School Holds', "Wooden Holds"],
@@ -148,7 +148,7 @@ if __name__=="__main__":
     MOONBOARD = MoonBoard(args.driver_type,args.led_mapping )
 
     print("Led Layout Test,")
-    MOONBOARD.led_layout_test(args.duration) 
+    MOONBOARD.led_layout_test(args.duration/1000) 
 
     # Display a holdset
     MOONBOARD.display_holdset(args.setup, args.holdset, args.duration)
