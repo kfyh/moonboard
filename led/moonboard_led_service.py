@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import argparse
-from led.moonboard import MoonBoard
+from moonboard import MoonBoard
 from gi.repository import GLib
 import dbus
 from dbus.mainloop.glib import DBusGMainLoop
