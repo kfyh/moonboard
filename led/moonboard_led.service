@@ -1,6 +1,6 @@
 [Unit]
 Description=Moonboard LED Service
-After=multi-user.target
+After=multi-user.target dbus.service com.moonboard
 
 [Service]
 WorkingDirectory=/home/pi/moonboard/led/
