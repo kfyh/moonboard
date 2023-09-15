@@ -5,9 +5,8 @@ After=multi-user.target bluetooth.service dbus.service hciuart.service
 [Service]
 Type=dbus
 BusName=com.moonboard
-ExecStart=/usr/bin/python3 /home/pi/moonboard/ble/moonboard_ble_service.py 
+ExecStart=/usr/bin/python3 /home/pi/moonboard/ble/moonboard_BLE_service.py 
 User=root
-SystemdService=dbus-org.com.moonbooard.service
 Restart=on-failure
 RestartSec=5s
 StandardOutput=file:/var/log/moonboard_ble_stdout.log

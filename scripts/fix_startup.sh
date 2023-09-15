@@ -1,4 +1,7 @@
 #!/bin/bash
-for s in moonboard_led.service moonboard_ble.service;
-sudo systemctl restart $service
-done
+sudo systemctl stop moonboard_led
+sudo systemctl stop com.moonboard
+
+# startup in correct order
+sudo systemctl restart com.moonboard
+sudo systemctl restart moonboard_led
