@@ -35,11 +35,6 @@ cd /home/pi/moonboard/led
 make install 
 cd ..
 
-echo "Prepare logfiles"
-sudo touch /var/log/moonboard
-sudo chown pi:pi /var/log/moonboard
-sudo chown pi:pi /var/log/moonboard
-
 echo "Restarting in 5 seconds to finalize changes. CTRL+C to cancel."
 sleep 1 > /dev/null
 printf "."
