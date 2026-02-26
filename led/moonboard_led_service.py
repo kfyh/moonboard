@@ -6,12 +6,11 @@ import dbus
 from dbus.mainloop.glib import DBusGMainLoop
 from functools import partial
 import json 
-import json
 import RPi.GPIO as GPIO
 import os
 #import signal
-import sys
 import logging
+import time
 
 
 
@@ -28,10 +27,24 @@ def button_pressed_callback(channel):
     #os.system("sudo shutdown -h now")
 
 
+timeout_id = None
+
+def turn_off_leds():
+    global timeout_id
+    logging.getLogger('run').info("Inactivity timeout: Turning off LEDs")
+    MOONBOARD.clear()
+    timeout_id = None
+    return False
+
 def new_problem_cb(mb,holds_string):
+        global timeout_id
         holds = json.loads(holds_string)
         mb.show_problem(holds)
         logger.debug('new_problem: '+holds_string)
+
+        if timeout_id is not None:
+            GLib.source_remove(timeout_id)
+        timeout_id = GLib.timeout_add_seconds(3600, turn_off_leds)
 
 if __name__ == "__main__":
 
@@ -67,7 +80,6 @@ if __name__ == "__main__":
 
 
     args = parser.parse_args()
-    argsd=vars(args)
     logger = logging.getLogger('run')
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
@@ -98,7 +110,14 @@ if __name__ == "__main__":
     dbml = DBusGMainLoop(set_as_default=True)
 
     bus = dbus.SystemBus()
-    proxy = bus.get_object('com.moonboard','/com/moonboard')
+
+    proxy = None
+    while proxy is None:
+        try:
+            proxy = bus.get_object('com.moonboard','/com/moonboard')
+        except dbus.DBusException:
+            logger.info("Waiting for com.moonboard service...")
+            time.sleep(2)
 
     proxy.connect_to_signal('new_problem', partial(new_problem_cb, MOONBOARD))
     loop = GLib.MainLoop()

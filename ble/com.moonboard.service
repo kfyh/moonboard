@@ -1,6 +1,6 @@
 [Unit]
 Description=Moonboard BLE DBUS Service
-After=multi-user.target bluetooth.service dbus.service hciuart.service 
+After=bluetooth.service dbus.service
 
 [Service]
 Type=dbus
@@ -14,4 +14,3 @@ StandardError=file:/var/log/moonboard_ble_stderr.log
 
 [Install]
 WantedBy=multi-user.target
-

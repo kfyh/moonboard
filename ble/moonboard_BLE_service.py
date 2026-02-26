@@ -4,14 +4,9 @@ from gi.repository import GLib
 from gatt_base.gatt_lib_advertisement import Advertisement
 from gatt_base.gatt_lib_characteristic import Characteristic
 from gatt_base.gatt_lib_service import Service
-import string,json
-import subprocess
+import json
 import logging
 from moonboard_app_protocol import UnstuffSequence, decode_problem_string
-
-import os
-import threading
-import pty
  
 BLUEZ_SERVICE_NAME =           'org.bluez'
 DBUS_OM_IFACE =                'org.freedesktop.DBus.ObjectManager'
@@ -32,74 +27,31 @@ class RxCharacteristic(Characteristic):
         self.process_rx=process_rx
 
     def WriteValue(self, value, options):
-        pass
-        #self.process_rx(value)
+        # The value is an array of bytes. process_rx expects a hex string.
+        hex_string = ''.join(format(b, '02x') for b in value)
+        self.process_rx(hex_string)
 
 class UartService(Service):
     def __init__(self, bus,path, index, process_rx):
         Service.__init__(self, bus,path, index, UART_SERVICE_UUID, True)
         self.add_characteristic(RxCharacteristic(bus, 1, self, process_rx))       
 
-class OutStream:
-    def __init__(self, fileno):
-        self._fileno = fileno
-        self._buffer = b""
-
-    def read_lines(self):
-        try:
-            output = os.read(self._fileno, 1000)
-        except OSError as e:
-            if e.errno != errno.EIO: raise
-            output = b""
-        lines = output.split(b"\n")
-        lines[0] = self._buffer + lines[0] # prepend previous
-                                           # non-finished line.
-        if output:
-            self._buffer = lines[-1]
-            finished_lines = lines[:-1]
-            readable = True
-        else:
-            self._buffer = b""
-            if len(lines) == 1 and not lines[0]:
-                # We did not have buffer left, so no output at all.
-                lines = []
-            finished_lines = lines
-            readable = False
-
-        finished_lines = [line.rstrip(b"\r")
-                         for line in finished_lines]
-        
-        return finished_lines, readable
-
+class MoonAdvertisement(Advertisement):
+    def __init__(self, bus, index):
+        Advertisement.__init__(self, bus, index, 'peripheral')
+        self.add_service_uuid(UART_SERVICE_UUID)
+        self.add_local_name(LOCAL_NAME)
+        self.include_tx_power = True
 
 class MoonApplication(dbus.service.Object):
     IFACE = "com.moonboard.method"
-    def __init__(self, bus, socket,logger):
+    def __init__(self, bus, logger):
         self.path = '/com/moonboard'
         self.services = []
         self.logger=logger
         self.unstuffer= UnstuffSequence(self.logger)
         dbus.service.Object.__init__(self, bus, self.path)
         self.add_service(UartService(bus,self.get_path(), 0, self.process_rx)) 
-
-        monitor_thread = threading.Thread(target=self.monitor_btmon)  
-        monitor_thread.start()
-
-    def monitor_btmon(self): 
-        out_r, out_w = pty.openpty()
-        cmd = ["sudo","btmon"]
-        process = subprocess.Popen(cmd, stdout=out_w)
-        f = OutStream(out_r)
-        while True:
-            lines, readable = f.read_lines()
-            if not readable: break
-            for line in lines:                
-                if line != '':
-                    line = line.decode()
-                    if 'Data:' in line:
-                        data = line.replace(' ','').replace('\x1b','').replace('[0m','').replace('Data:','')
-                        self.process_rx(data)
-                        self.logger.info('New data '+ data)
 
     def process_rx(self,ba):
         new_problem_string= self.unstuffer.process_bytes(ba)
@@ -109,7 +61,6 @@ class MoonApplication(dbus.service.Object):
             problem= decode_problem_string(new_problem_string, flags)
             self.new_problem(json.dumps(problem))
             self.unstuffer.flags = ''
-            start_adv(self.logger)
 
     @dbus.service.signal(dbus_interface="com.moonboard",
                             signature="s")
@@ -140,51 +91,12 @@ def register_app_error_cb(error):
     print('Failed to register application: ' + str(error))
     mainloop.quit()
 
+def register_ad_cb():
+    print('Advertisement registered')
 
-def run(*popenargs, **kwargs):
-    input = kwargs.pop("input", None)
-    check = kwargs.pop("handle", False)
-
-    if input is not None:
-        if 'stdin' in kwargs:
-            raise ValueError('stdin and input arguments may not both be used.')
-        kwargs['stdin'] = subprocess.PIPE
-
-    process = subprocess.Popen(*popenargs, **kwargs)
-    try:
-        stdout, stderr = process.communicate(input)
-    except:
-        process.kill()
-        process.wait()
-        raise
-    retcode = process.poll()
-    if check and retcode:
-        raise subprocess.CalledProcessError(
-            retcode, process.args, output=stdout, stderr=stderr)
-    return retcode, stdout, stderr
-
-
-def setup_adv(logger):
-    logger.info('setup adv')
-    setup_adv = [
-    "hcitool -i hci0 cmd 0x08 0x000a 00",
-    "hcitool -i hci0 cmd 0x08 0x0008 18 02 01 06 02 0a 00 11 07 9e ca dc 24 0e e5 a9 e0 93 f3 a3 b5 01 00 40 6e 00 00 00 00 00 00 00",
-    "hcitool -i hci0 cmd 0x08 0x0009 0d 0c 09 4d 6f 6f 6e 62 6f 61 72 64 20 41",
-    "hcitool -i hci0 cmd 0x08 0x0006 80 02 c0 03 00 00 00 00 00 00 00 00 00 07 00"
-    ]
-    for c in setup_adv:
-        run("sudo "+ c, shell=True)
-
-
-def start_adv(logger,start=True):
-    if start:
-        start='01'
-        logger.info('start adv')
-    else:
-        start='00'
-        logger.info('stop adv')
-    start_adv= "hcitool -i hci0 cmd 0x08 0x000a {}".format(start)
-    run("sudo " +start_adv, shell=True)
+def register_ad_error_cb(error):
+    print('Failed to register advertisement: ' + str(error))
+    mainloop.quit()
 
 def main(logger,adapter):
     global mainloop
@@ -201,33 +113,36 @@ def main(logger,adapter):
     except dbus.exceptions.NameExistsException:
         sys.exit(1)
 
-    app = MoonApplication(bus_name,None,logger)    
+    app = MoonApplication(bus_name,logger)    
 
     service_manager = dbus.Interface(
                                 bus.get_object(BLUEZ_SERVICE_NAME, adapter),
                                 GATT_MANAGER_IFACE)
+    ad_manager = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, adapter),
+                                LE_ADVERTISING_MANAGER_IFACE)
 
- 
-    loop = GLib.MainLoop()
+    mainloop = GLib.MainLoop()
 
     logger.info('app path: '+ app.get_path())
 
     service_manager.RegisterApplication(app.get_path(), {},
                                         reply_handler=register_app_cb,
                                         error_handler=register_app_error_cb)
-    
-    setup_adv(logger)
-    start_adv(logger)
+
+    advertisement = MoonAdvertisement(bus, 0)
+    ad_manager.RegisterAdvertisement(advertisement.get_path(), {},
+                                     reply_handler=register_ad_cb,
+                                     error_handler=register_ad_error_cb)
 
     # Run the loop
     try:
-        loop.run()
+        mainloop.run()
     except KeyboardInterrupt:
         print("keyboard interrupt received")
     except Exception as e:
         print("Unexpected exception occurred: '{}'".format(str(e)))
     finally:
-        loop.quit()
+        mainloop.quit()
 
  
 if __name__ == '__main__':
@@ -237,7 +152,6 @@ if __name__ == '__main__':
     parser.add_argument('--debug',  action = "store_true")
 
     args = parser.parse_args()
-    argsd=vars(args)
 
     logger = logging.getLogger('moonboard.ble')
     logger.setLevel(logging.DEBUG)

@@ -23,9 +23,6 @@ echo "Installing python dependencies"
 pip3 install -r install/requirements.txt
 sudo pip3 install -r install/requirements.txt 
 
-echo "Applying patch to bluez for iPhone"
-sudo sed -i '/ExecStart/s/$/ -P\ battery/' /usr/lib/systemd/system/bluetooth.service
-
 echo "Install services" # FIXME
 cd /home/pi/moonboard/ble
 make install
