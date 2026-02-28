@@ -7,7 +7,7 @@ from gatt_base.gatt_lib_service import Service
 import json
 import logging
 from moonboard_app_protocol import UnstuffSequence, decode_problem_string
- 
+
 BLUEZ_SERVICE_NAME =           'org.bluez'
 DBUS_OM_IFACE =                'org.freedesktop.DBus.ObjectManager'
 LE_ADVERTISING_MANAGER_IFACE = 'org.bluez.LEAdvertisingManager1'
@@ -34,7 +34,7 @@ class RxCharacteristic(Characteristic):
 class UartService(Service):
     def __init__(self, bus,path, index, process_rx):
         Service.__init__(self, bus,path, index, UART_SERVICE_UUID, True)
-        self.add_characteristic(RxCharacteristic(bus, 1, self, process_rx))       
+        self.add_characteristic(RxCharacteristic(bus, 1, self, process_rx))
 
 class MoonAdvertisement(Advertisement):
     def __init__(self, bus, index):
@@ -51,7 +51,7 @@ class MoonApplication(dbus.service.Object):
         self.logger=logger
         self.unstuffer= UnstuffSequence(self.logger)
         dbus.service.Object.__init__(self, bus, self.path)
-        self.add_service(UartService(bus,self.get_path(), 0, self.process_rx)) 
+        self.add_service(UartService(bus,self.get_path(), 0, self.process_rx))
 
     def process_rx(self,ba):
         new_problem_string= self.unstuffer.process_bytes(ba)
@@ -83,6 +83,17 @@ class MoonApplication(dbus.service.Object):
                 response[chrc.get_path()] = chrc.get_properties()
         return response
 
+def find_adapter(bus):
+    remote_om = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, '/'),
+                               DBUS_OM_IFACE)
+    objects = remote_om.GetManagedObjects()
+
+    for o, props in objects.items():
+        if GATT_MANAGER_IFACE in props.keys():
+            return o
+
+    return None
+
 def register_app_cb():
     print('GATT application registered')
 
@@ -98,22 +109,20 @@ def register_ad_error_cb(error):
     print('Failed to register advertisement: ' + str(error))
     mainloop.quit()
 
-def main(logger,adapter):
+def main(logger, bus, adapter):
     global mainloop
 
-    logger.info("Bluetooth adapter: "+ str(adapter))
-
-    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-    bus = dbus.SystemBus()
+    logger.info("Using Bluetooth adapter: "+ str(adapter))
 
     try:
         bus_name = dbus.service.BusName(SERVICE_NAME,
                                         bus=bus,
                                         do_not_queue=True)
     except dbus.exceptions.NameExistsException:
+        logger.error(f"Service name {SERVICE_NAME} already exists on D-Bus.")
         sys.exit(1)
 
-    app = MoonApplication(bus_name,logger)    
+    app = MoonApplication(bus_name,logger)
 
     service_manager = dbus.Interface(
                                 bus.get_object(BLUEZ_SERVICE_NAME, adapter),
@@ -135,18 +144,11 @@ def main(logger,adapter):
                                      error_handler=register_ad_error_cb)
 
     # Run the loop
-    try:
-        mainloop.run()
-    except KeyboardInterrupt:
-        print("keyboard interrupt received")
-    except Exception as e:
-        print("Unexpected exception occurred: '{}'".format(str(e)))
-    finally:
-        mainloop.quit()
+    mainloop.run()
 
- 
+
 if __name__ == '__main__':
-    
+
     import argparse
     parser = argparse.ArgumentParser(description='Moonboard bluetooth service')
     parser.add_argument('--debug',  action = "store_true")
@@ -162,4 +164,17 @@ if __name__ == '__main__':
     else:
         logger.setLevel(logging.INFO)
 
-    main(logger,adapter='/org/bluez/hci0')
+    try:
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+        bus = dbus.SystemBus()
+        adapter = find_adapter(bus)
+        if not adapter:
+            logger.error('GATT capable adapter not found')
+            sys.exit(1)
+
+        main(logger, bus, adapter)
+    except Exception as e:
+        logger.error("Unhandled exception in main: {}".format(str(e)), exc_info=True)
+    finally:
+        if mainloop and mainloop.is_running():
+            mainloop.quit()

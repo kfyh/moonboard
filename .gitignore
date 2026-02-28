@@ -2,3 +2,6 @@
 .vscode/
 .DS_Store
 led/*.pyc
+build/
+wpa_supplicant.conf
+build.log

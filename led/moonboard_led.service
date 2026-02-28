@@ -1,11 +1,11 @@
 [Unit]
 Description=Moonboard LED Service
-After=multi-user.target dbus.service
+After=com.moonboard.service
 
 [Service]
-WorkingDirectory=/home/pi/moonboard/led/
-ExecStart=/usr/bin/python3 /home/pi/moonboard/led/moonboard_led_service.py 
-Type=idle
+WorkingDirectory=/home/admin/moonboard/led/
+ExecStart=/usr/bin/python3 /home/admin/moonboard/led/moonboard_led_service.py 
+Type=simple
 User=root
 StandardOutput=file:/var/log/moonboard_led_stdout.log
 StandardError=file:/var/log/moonboard_led_stderr.log
