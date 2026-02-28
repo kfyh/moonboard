@@ -51,17 +51,20 @@ if __name__ == "__main__":
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler())
 
+    gpio_enabled = False
     try:
-        # Comment out button stuff - yet...
-        # # BUTTON + LED setup
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setwarnings(False)
-        GPIO.setup(LED_GPIO, GPIO.OUT)
-        GPIO.output(LED_GPIO,1)
-        # GPIO.setup(BUTTON_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        # # interupt handling for the power button
-        # GPIO.add_event_detect(BUTTON_GPIO, GPIO.RISING,
-        #     callback=button_pressed_callback, bouncetime=300)
+        # GPIO setup for button and LED
+        try:
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setup(LED_GPIO, GPIO.OUT)
+            GPIO.output(LED_GPIO,1)
+            # GPIO.setup(BUTTON_GPIO, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            # # interupt handling for the power button
+            # GPIO.add_event_detect(BUTTON_GPIO, GPIO.RISING,
+            #     callback=button_pressed_callback, bouncetime=300)
+            gpio_enabled = True
+        except RuntimeError as e:
+            logger.warning("Could not set up GPIO pins. Running without GPIO support. Error: %s", e)
 
         # #signal.signal(signal.SIGINT, signal_handler)
         # #signal.pause()
@@ -135,4 +138,5 @@ if __name__ == "__main__":
     finally:
         if 'loop' in locals() and loop.is_running():
             loop.quit()
-        GPIO.cleanup()
+        if gpio_enabled:
+            GPIO.cleanup()

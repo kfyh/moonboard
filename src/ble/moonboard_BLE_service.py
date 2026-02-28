@@ -83,6 +83,11 @@ class MoonApplication(dbus.service.Object):
                 response[chrc.get_path()] = chrc.get_properties()
         return response
 
+    @dbus.service.method("com.moonboard.method",
+                         in_signature='', out_signature='s')
+    def Ping(self):
+        return "Pong"
+
 def find_adapter(bus):
     remote_om = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, '/'),
                                DBUS_OM_IFACE)

@@ -5,3 +5,4 @@ led/*.pyc
 build/
 wpa_supplicant.conf
 build.log
+cache/

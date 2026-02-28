@@ -5,7 +5,7 @@ After=bluetooth.service dbus.service
 [Service]
 Type=dbus
 BusName=com.moonboard
-ExecStart=/usr/bin/python3 /home/admin/moonboard/ble/moonboard_BLE_service.py 
+ExecStart=/usr/bin/python3 /home/admin/moonboard/ble/moonboard_BLE_service.py
 User=root
 Restart=on-failure
 RestartSec=5s

@@ -1,10 +1,12 @@
 [Unit]
 Description=Moonboard LED Service
 After=com.moonboard.service
+Requires=com.moonboard.service
 
 [Service]
 WorkingDirectory=/home/admin/moonboard/led/
-ExecStart=/usr/bin/python3 /home/admin/moonboard/led/moonboard_led_service.py 
+ExecStartPre=/bin/sh -c "while ! busctl --system call com.moonboard /com/moonboard com.moonboard.method Ping > /dev/null; do sleep 1; done"
+ExecStart=/usr/bin/python3 /home/admin/moonboard/led/moonboard_led_service.py
 Type=simple
 User=root
 StandardOutput=file:/var/log/moonboard_led_stdout.log

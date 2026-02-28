@@ -1,11 +1,22 @@
 # --- Image Build ---
 # Variables for image building. IMG_DIR can be overridden from command line.
 IMG_DIR ?= build
+CACHE_DIR ?= cache
 RASPI_OS_URL := https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2023-12-11/2023-12-11-raspios-bookworm-armhf-lite.img.xz
-RASPI_OS_XZ := $(IMG_DIR)/$(notdir $(RASPI_OS_URL))
+RASPI_OS_XZ := $(CACHE_DIR)/$(notdir $(RASPI_OS_URL))
 RASPI_OS_IMG := $(IMG_DIR)/$(basename $(notdir $(RASPI_OS_URL)))
 MNT_POINT := /mnt/raspi_img
 PROJECT_DIR_ON_IMG := /home/admin/moonboard
+
+.PHONY: clean
+clean:
+	@echo "--- Cleaning up build artifacts ---"
+	sudo rm -rf $(IMG_DIR)
+
+.PHONY: clean-pip-cache
+clean-pip-cache:
+	@echo "--- Cleaning pip cache ---"
+	rm -rf $(CACHE_DIR)/pip_cache
 
 # Main build target
 build-image: setup-qemu download-image resize-image mount-image copy-files install-software unmount-and-resize
@@ -15,18 +26,20 @@ build-image: setup-qemu download-image resize-image mount-image copy-files insta
 download-image: $(RASPI_OS_IMG)
 
 $(RASPI_OS_IMG): $(RASPI_OS_XZ)
-	@echo "--- Decompressing Raspberry Pi OS Image ---"
-	xz -d -k -T 0 $<
+	@echo "--- Decompressing Raspberry Pi OS Image from $(CACHE_DIR) to $(IMG_DIR) ---"
+	mkdir -p $(IMG_DIR)
+	xz -d -c -T 0 $< > $@
 
 $(RASPI_OS_XZ):
-	@echo "--- Downloading Raspberry Pi OS Image ---"
-	mkdir -p $(IMG_DIR)
+	@echo "--- Downloading Raspberry Pi OS Image to $(CACHE_DIR) ---"
+	mkdir -p $(CACHE_DIR)
 	wget -O $@ $(RASPI_OS_URL)
 
 # Resize the image and partition
 resize-image:
 	@echo "--- Expanding Image Size ---"
-	truncate -s +2G $(RASPI_OS_IMG)
+	# Expand the image to a fixed size of 4GB to avoid it growing on every build.
+	truncate -s 4G $(RASPI_OS_IMG)
 	sudo parted -s $(RASPI_OS_IMG) resizepart 2 100%
 
 # Set up QEMU for ARM emulation
@@ -46,14 +59,25 @@ mount-image:
 	sudo mount --bind /dev $(MNT_POINT)/dev; \
 	sudo mount --bind /sys $(MNT_POINT)/sys; \
 	sudo mount --bind /proc $(MNT_POINT)/proc; \
-	sudo mount --bind /dev/pts $(MNT_POINT)/dev/pts;
+	sudo mount --bind /dev/pts $(MNT_POINT)/dev/pts; \
+	@echo "--- Setting up pip cache ---"; \
+	mkdir -p $(CACHE_DIR)/pip_cache; \
+	chmod 777 $(CACHE_DIR)/pip_cache; \
+	sudo mkdir -p $(MNT_POINT)/var/cache/pip-host; \
+	sudo mount --bind $(CACHE_DIR)/pip_cache $(MNT_POINT)/var/cache/pip-host;
 
 # Copy project files to the image
 copy-files:
 	@echo "--- Copying QEMU and project files ---"
 	sudo cp /usr/bin/qemu-arm-static $(MNT_POINT)/usr/bin/
 	sudo mkdir -p $(MNT_POINT)$(PROJECT_DIR_ON_IMG)
-	sudo rsync -a . $(MNT_POINT)$(PROJECT_DIR_ON_IMG) --exclude $(IMG_DIR) --exclude '.git*'
+	sudo rsync -a src/ $(MNT_POINT)$(PROJECT_DIR_ON_IMG)
+	@echo "--- Copying startup scripts ---"
+	sudo mkdir -p $(MNT_POINT)/usr/local/bin
+	sudo cp src/install/run-led-service.sh $(MNT_POINT)/usr/local/bin/
+	sudo cp src/install/run-ble-service.sh $(MNT_POINT)/usr/local/bin/
+	sudo chmod +x $(MNT_POINT)/usr/local/bin/run-led-service.sh
+	sudo chmod +x $(MNT_POINT)/usr/local/bin/run-ble-service.sh
 	@echo "--- Enabling SSH ---"
 	sudo touch $(MNT_POINT)/boot/ssh
 
@@ -82,11 +106,11 @@ install-dependencies:
 		export DEBIAN_FRONTEND=noninteractive; \
 		apt-get update; \
 		apt-get remove -y userconf-pi || true; \
-		apt-get install -y python3-pip git avahi-daemon python3-dbus python3-gi; \
+		apt-get install -y dos2unix python3-pip git avahi-daemon python3-dbus python3-gi; \
 		systemctl enable avahi-daemon; \
 		rm -f /usr/lib/python*/EXTERNALLY-MANAGED; \
 		cd $(PROJECT_DIR_ON_IMG); \
-		pip3 install -r install/requirements.txt; \
+		pip3 install --cache-dir /var/cache/pip-host -r install/requirements.txt; \
 	"
 
 # Install services
