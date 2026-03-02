@@ -1,14 +1,19 @@
 [Unit]
 Description=Moonboard BLE DBUS Service
-After=bluetooth.service dbus.service
+After=bluetooth.target bluetooth.service dbus.service
+Wants=bluetooth.target
 
 [Service]
 Type=dbus
+TimeoutStartSec=30s
 BusName=com.moonboard
-ExecStart=/usr/bin/python3 /home/admin/moonboard/ble/moonboard_BLE_service.py
+ExecStartPre=/bin/sleep 2
+ExecStart=/usr/bin/python3 /opt/moonboard//ble/moonboard_BLE_service.py
 User=root
 Restart=on-failure
-RestartSec=5s
+RestartSec=10s
+StartLimitIntervalSec=60s
+StartLimitBurst=3
 StandardOutput=file:/var/log/moonboard_ble_stdout.log
 StandardError=file:/var/log/moonboard_ble_stderr.log
 

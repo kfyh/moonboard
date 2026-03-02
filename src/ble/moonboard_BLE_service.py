@@ -1,4 +1,5 @@
 import sys
+from time import time
 import dbus, dbus.mainloop.glib
 from gi.repository import GLib
 from gatt_base.gatt_lib_advertisement import Advertisement
@@ -172,10 +173,17 @@ if __name__ == '__main__':
     try:
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         bus = dbus.SystemBus()
-        adapter = find_adapter(bus)
-        if not adapter:
-            logger.error('GATT capable adapter not found')
-            sys.exit(1)
+
+        adapter = None
+        deadline = time.time() + 30  # wait up to 30 seconds for adapter
+        while adapter is None:
+            if time.time() > deadline:
+                logger.error('GATT capable adapter not found after 30s, giving up')
+                sys.exit(0)
+            adapter = find_adapter(bus)
+            if adapter is None:
+                logger.info('Waiting for GATT adapter...')
+                time.sleep(2)
 
         main(logger, bus, adapter)
     except Exception as e:
