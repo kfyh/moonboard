@@ -1,5 +1,5 @@
 import sys
-from time import time
+from time import time, sleep   
 import dbus, dbus.mainloop.glib
 from gi.repository import GLib
 from gatt_base.gatt_lib_advertisement import Advertisement
@@ -42,7 +42,7 @@ class MoonAdvertisement(Advertisement):
         Advertisement.__init__(self, bus, index, 'peripheral')
         self.add_service_uuid(UART_SERVICE_UUID)
         self.add_local_name(LOCAL_NAME)
-        self.include_tx_power = True
+#        self.include_tx_power = True
 
 class MoonApplication(dbus.service.Object):
     IFACE = "com.moonboard.method"
@@ -175,15 +175,15 @@ if __name__ == '__main__':
         bus = dbus.SystemBus()
 
         adapter = None
-        deadline = time.time() + 30  # wait up to 30 seconds for adapter
+        deadline = time() + 30  # wait up to 30 seconds for adapter
         while adapter is None:
-            if time.time() > deadline:
+            if time() > deadline:
                 logger.error('GATT capable adapter not found after 30s, giving up')
                 sys.exit(0)
             adapter = find_adapter(bus)
             if adapter is None:
                 logger.info('Waiting for GATT adapter...')
-                time.sleep(2)
+                sleep(2)
 
         main(logger, bus, adapter)
     except Exception as e:

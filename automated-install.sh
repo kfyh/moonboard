@@ -29,7 +29,8 @@ done
 apt-get update
 apt-get install -y python3 python3-pip dos2unix avahi-daemon \
     python3-dbus python3-gi bluez bluetooth \
-    libjpeg-dev libpng-dev zlib1g-dev
+    libjpeg-dev libpng-dev zlib1g-dev \
+    libopenblas-dev liblapack-dev python3-setuptools python3-pip
 
 # ── Copy src ─────────────────────────────────────────────────────────────────
 mkdir -p "$INSTALL_TARGET"
@@ -40,12 +41,24 @@ chown -R "$REAL_USER":"$REAL_USER" "$INSTALL_TARGET"
 # Note: On Bookworm, it's better to use a Virtual Env, 
 # but if you must use global, this works:
 rm -f /usr/lib/python3*/EXTERNALLY-MANAGED
-pip3 install --only-binary=Pillow -r "$INSTALL_TARGET/install/requirements.txt"
+pip3 install --only-binary=Pillow --ignore-installed -r "$INSTALL_TARGET/install/requirements.txt"
+
+# Enable SPI interface if not already active
+sudo raspi-config nonint do_spi 0
 
 # ── Services ─────────────────────────────────────────────────────────────────
 # Run the makes as the real user if they need user-level paths
 make -C "$INSTALL_TARGET/ble" install
 make -C "$INSTALL_TARGET/led" install
+
+# Ensure services are enabled (via Makefiles) and then start them
+echo "Starting Moonboard services..."
+sudo systemctl daemon-reload
+sudo systemctl start com.moonboard.service
+sudo systemctl start moonboard_led.service
+
+# Quick verification check
+sudo systemctl is-active com.moonboard.service moonboard_led.service
 
 echo "Installation complete. This script will not run again."
 # No need to edit cmdline.txt or delete itself; 

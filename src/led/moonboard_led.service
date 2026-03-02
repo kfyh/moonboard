@@ -4,8 +4,8 @@ After=com.moonboard.service
 Wants=com.moonboard.service
 
 [Service]
-WorkingDirectory=/opt/moonboard//led/
-ExecStart=/usr/bin/python3 /opt/moonboard//led/moonboard_led_service.py
+WorkingDirectory=/opt/moonboard/led/
+ExecStart=/usr/bin/python3 /opt/moonboard/led/moonboard_led_service.py
 Type=simple
 TimeoutStartSec=130s
 User=root
