@@ -9,6 +9,7 @@ import json
 import os
 import logging
 import time
+import requests
 
 # external power LED and power button
 LED_GPIO = 18
@@ -35,6 +36,11 @@ def new_problem_cb(mb, holds_string):
     global timeout_id
     holds = json.loads(holds_string)
     mb.show_problem(holds)
+    response = requests.post("http://localhost:3001/api/holds", json=holds)
+    if response.status_code == 200:
+        logger.info("Holds data sent successfully")
+    else:
+        logger.error(f"Failed to send holds data: {response.status_code} - {response.text}")
     logger.debug('new_problem: ' + holds_string)
     if timeout_id is not None:
         GLib.source_remove(timeout_id)
