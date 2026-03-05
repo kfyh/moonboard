@@ -6,4 +6,3 @@ Pillow
 pyserial
 spidev 
 rpi-ws281x>=4.2.2
-flake8

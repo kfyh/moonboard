@@ -1,0 +1,9 @@
+pytest
+mock
+flake8
+numpy
+Pillow
+pyserial
+BiblioPixel>=3.4.46
+BiblioPixelAnimations>=3.20190410.153508
+BiblioPixelTriggers>=1.0.2
