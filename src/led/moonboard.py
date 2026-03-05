@@ -49,7 +49,7 @@ class MoonBoard:
                 driver = SimPixel(num_pixels)
                 driver.open_browser()
             else:
-                raise ValueError("driver_type {driver_type} unknow.".format(driver_type) )
+                raise ValueError("driver_type {} unknown.".format(driver_type))
         except (ImportError, ValueError, RuntimeError) as e:
             print("Not able to initialize the driver. Error{}".format(e))
             print("Use bibliopixel.drivers.dummy_driver")

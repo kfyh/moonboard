@@ -96,3 +96,6 @@ mock_gpio.BCM = 'BCM'
 mock_gpio.OUT = 'OUT'
 sys.modules['RPi'] = MagicMock()
 sys.modules['RPi.GPIO'] = mock_gpio
+
+mock_spidev = MagicMock()
+sys.modules['spidev'] = mock_spidev
