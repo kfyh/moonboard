@@ -19,21 +19,29 @@ In this project we emulate the behaviour of the box using a rasperry pi and addr
 
 Besides the tools, time and money (the climbing holds are the most expensive component) you will need:
 
-- Rapi W Zero with 8GB SD Card - powered over GPIO
+The hardware used for this project was:
+- Raspberry Pi 3 Model A+ with 32GB SD Card - powered over GPIO (Note that the original project used a Rapi W Zero with 8GB SD Card - powered over GPIO)
 - 4x LED Strips: 50x WS2811 LED, 5V, 12mm - custom cable length of 23cm (alternatively 3x 4x LED Strips with standard length of 7cm, use mooboard/led/create_nth_led_layout.py to create custom spacing for LED´s)
 - Power supply [meanwell mdr-60-5](https://www.meanwell.com/webapp/product/search.aspx?prod=MDR-60) - (~60mA * 50 * 4 = 12A ==> 60 W for 5V)
 - Suitable Case (i.e. TEKO)
 
-# Installation
+# Software Installation
 
-To provision the raspberry pi, you can run the `./scripts/fix_startup.sh` script.
+- Use Raspberry Pi Imager to install Raspberry Pi OS Lite (bookworm) onto your sd card
+- On Windows run >WSL to enter a WSL environment, then run: `sudo make deploy SD_DRIVE=D` where D is the drive letter of your SD Card
+- Insert the SD Card into your Raspberry Pi and power it on
+- Log in to your Raspberry Pi and run: `sudo /boot/firmware/moonboard/install/automated-install.sh`
+- Note that your Raspberry Pi will reboot automatically upon completion.
 
-To install the moonboard services, run the following command:
-```
-make install
-```
+- To test load the Moonboard app on your phone, click on a problem, then click the light icon. 
+- This will ask you if you want to connect to a moonboard, click yes
 
-# Build Instructions
+# Installation notes
+- I prefer to change the hostname, user and enable ssh. There's are all customisation options in the Raspberry Pi Imager
+- The src/led/led_mappings.json needs to be modified to match how you organised your led strip. I split more board into 3 scetions to limit drilling through the cross beams, and I also used every 3rd led. led_mapping_3-Panels.json demonstrates that mapping setup.
+- The moonboard services will load whether the led's are connected or not. You can look for the logs files to see if they are working.
+
+# Moonboard Build Instructions
 
 - [How to Build a Home Climbing Wall](doc/BUILD-WALL.md)
 - [How to Build the LED System](doc/BUILD-LEDSYSTEM.md)
