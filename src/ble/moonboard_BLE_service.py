@@ -128,7 +128,7 @@ def main(logger, bus, adapter):
         logger.error(f"Service name {SERVICE_NAME} already exists on D-Bus.")
         sys.exit(1)
 
-    app = MoonApplication(bus_name,logger)
+    app = MoonApplication(bus,logger)
 
     service_manager = dbus.Interface(
                                 bus.get_object(BLUEZ_SERVICE_NAME, adapter),
