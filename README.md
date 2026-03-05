@@ -28,7 +28,10 @@ The hardware used for this project was:
 # Software Installation
 
 - Use Raspberry Pi Imager to install Raspberry Pi OS Lite (bookworm) onto your sd card
-- On Windows run >WSL to enter a WSL environment, then run: `sudo make deploy SD_DRIVE=D` where D is the drive letter of your SD Card
+- Deploy the project files to the SD card's boot partition:
+  - **On Windows (via WSL):** Run `sudo make deploy SD_DRIVE=D`, where `D` is the drive letter of your SD Card. The script handles mounting and unmounting.
+  - **On macOS:** The boot partition typically mounts at `/Volumes/bootfs`. Run `sudo make deploy BOOTFS=/Volumes/bootfs`, then eject the card.
+  - **On Linux/Unix:** Mount the SD card's boot partition and run `sudo make deploy BOOTFS=/path/to/bootfs`. Unmount it when done.
 - Insert the SD Card into your Raspberry Pi and power it on
 - Log in to your Raspberry Pi and run: `sudo /boot/firmware/moonboard/install/automated-install.sh`
 - Note that your Raspberry Pi will reboot automatically upon completion.

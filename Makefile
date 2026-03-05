@@ -13,7 +13,7 @@ endif
 
 	@echo "→ Copying project files to $(BOOTFS)/moonboard/"
 	mkdir -p $(BOOTFS)/moonboard
-	cp -r src/. $(BOOTFS)/moonboard/
+	cp -r src/ble src/led install $(BOOTFS)/moonboard/
 
 	@echo "→ Make automated-install.sh runnable..."
 	chmod +x $(BOOTFS)/moonboard/install/automated-install.sh
