@@ -20,6 +20,8 @@ def decode_problem_string(s, flags):
         num_rows = 18
 
     for h in s.split(','):
+        if not h:
+            continue
         t,p = h[0],position_trans(int(h[1:]), num_rows)
         if t=='S':
             holds['START'].append(p)
