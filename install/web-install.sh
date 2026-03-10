@@ -8,8 +8,8 @@
 
 set -e
 
-APP_NAME="moonboard"
-APP_DIR="/home/pi/$APP_NAME"
+APP_NAME="moonboard_web"
+APP_DIR="/home/moonboard_web"
 SOURCE_DIR="/boot/firmware/moonboard/web/dist"
 APP_PORT=3000
 NODE_VERSION="20"
@@ -52,9 +52,31 @@ if command -v node &>/dev/null; then
   log "Node.js already installed ($(node -v)). Skipping."
 else
   apt-get update -qq
-  apt-get install -y curl ca-certificates
-  curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
-  apt-get install -y nodejs
+  CANDIDATE=$(apt-cache policy nodejs | grep Candidate | awk '{print $2}')
+  MAJOR_VER=$(echo "$CANDIDATE" | cut -d. -f1)
+
+  if [[ "$MAJOR_VER" =~ ^[0-9]+$ ]] && [[ "$MAJOR_VER" -ge 20 ]]; then
+    info "System repository has Node.js v$MAJOR_VER. Installing via apt..."
+    apt-get install -y nodejs npm
+  else
+    info "System Node.js version ($CANDIDATE) is insufficient. Falling back to manual install..."
+    ARCH=$(dpkg --print-architecture)
+    if [[ "$ARCH" == "armhf" ]]; then
+      info "Detected armhf. Downloading official binaries..."
+      apt-get install -y curl xz-utils
+      # Install Node v20.11.1 (LTS) for armv7l
+      NODE_DIST="v20.11.1"
+      curl -fsSL "https://nodejs.org/dist/${NODE_DIST}/node-${NODE_DIST}-linux-armv7l.tar.xz" -o node-install.tar.xz || error "Download failed"
+      tar -xJf node-install.tar.xz --strip-components=1 -C /usr/local
+      rm node-install.tar.xz
+      ln -sf /usr/local/bin/node /usr/bin/node
+    else
+      info "Using NodeSource..."
+      apt-get install -y curl ca-certificates
+      curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - || error "NodeSource setup failed"
+      apt-get install -y nodejs
+    fi
+  fi
   log "Node.js $(node -v) installed."
 fi
 
@@ -71,19 +93,8 @@ mkdir -p "$APP_DIR"
 cp -r "$SOURCE_DIR/api" "$APP_DIR/"
 cp -r "$SOURCE_DIR/ui"  "$APP_DIR/"
 
-# Generate a minimal package.json if one isn't bundled in dist
-if [[ ! -f "$SOURCE_DIR/package.json" ]]; then
-  cat > "$APP_DIR/package.json" <<EOF
-{
-  "name": "moonboard",
-  "version": "1.0.0",
-  "main": "api/index.js",
-  "dependencies": {
-    "express": "^4.18.0"
-  }
-}
-EOF
-fi
+# Copy package.json from the web root (parent of dist)
+cp "$(dirname "$SOURCE_DIR")/package.json" "$APP_DIR/"
 
 chown -R "$SERVICE_USER":"$SERVICE_USER" "$APP_DIR"
 cd "$APP_DIR"
@@ -96,28 +107,8 @@ log "Files installed and dependencies ready."
 # -----------------------------------------------------------------------------
 info "Step 4/4: Setting up systemd service..."
 
-cat > "/etc/systemd/system/${APP_NAME}.service" <<EOF
-[Unit]
-Description=Moonboard Express App
-After=network.target
-
-[Service]
-Type=simple
-User=$SERVICE_USER
-WorkingDirectory=$APP_DIR
-ExecStart=/usr/bin/node $APP_DIR/api/index.js
-Restart=on-failure
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=$APP_NAME
-Environment=NODE_ENV=production
-Environment=PORT=$APP_PORT
-Environment=UI_DIR=$APP_DIR/ui
-
-[Install]
-WantedBy=multi-user.target
-EOF
+# Copy the service file from web/service/
+cp "$(dirname "$SOURCE_DIR")/service/moonboard_web.service" "/etc/systemd/system/${APP_NAME}.service"
 
 systemctl daemon-reload
 systemctl enable "$APP_NAME"

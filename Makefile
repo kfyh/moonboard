@@ -1,4 +1,4 @@
-.PHONY: deploy install-deps test
+.PHONY: deploy install-deps test build-web
 
 # Path to the mounted bootfs (FAT32) partition.
 BOOTFS ?= /mnt/bootfs
@@ -17,8 +17,15 @@ endif
 	cp -r src/led $(BOOTFS)/moonboard/
 	cp -r install $(BOOTFS)/moonboard/
 
+	@echo "→ Copying Web UI..."
+	mkdir -p $(BOOTFS)/moonboard/web
+	cp -r src/web/dist $(BOOTFS)/moonboard/web/
+	cp -r src/web/service $(BOOTFS)/moonboard/web/
+	cp src/web/package.json $(BOOTFS)/moonboard/web/
+
 	@echo "→ Make automated-install.sh runnable..."
 	chmod +x $(BOOTFS)/moonboard/install/automated-install.sh
+	chmod +x $(BOOTFS)/moonboard/install/web-install.sh
 
 	@echo "→ Ensuring cmdline.txt is clean (Removing old init= hooks if present)"
 	@sed -i 's| init=/boot/firmware/firstrun.sh||g' $(BOOTFS)/cmdline.txt
@@ -46,7 +53,11 @@ install-deps:
 	@echo "→ Installing Python Dev dependencies..."
 	./venv/bin/pip install -r install/requirements-dev.txt
 	@echo "→ (Future) Installing Node.js dependencies..."
-	# cd src/web && npm install
+	# cd ./src/web && npm install
+
+build-web:
+	@echo "→ Building Web UI..."
+	cd ./src/web && npm run build
 
 test:
 	@echo "→ Running Python tests..."
