@@ -8,12 +8,11 @@
 
 set -e
 
-APP_NAME="moonboard_web"
-APP_DIR="/home/moonboard_web"
+# Load shared config
+source "$(dirname "$0")/config.sh"
+
 SOURCE_DIR="/boot/firmware/moonboard/web/dist"
-APP_PORT=3000
 NODE_VERSION="20"
-SERVICE_USER="pi"
 
 # -----------------------------------------------------------------------------
 # Colours
@@ -83,22 +82,32 @@ fi
 # -----------------------------------------------------------------------------
 # STEP 3: Copy files and install dependencies
 # -----------------------------------------------------------------------------
-info "Step 3/4: Installing app to $APP_DIR..."
+info "Step 3/4: Installing app to $WEB_TARGET..."
 
-if systemctl is-active --quiet "$APP_NAME" 2>/dev/null; then
-  systemctl stop "$APP_NAME"
+if systemctl is-active --quiet "$WEB_APP_NAME" 2>/dev/null; then
+  systemctl stop "$WEB_APP_NAME"
 fi
 
-mkdir -p "$APP_DIR"
-cp -r "$SOURCE_DIR/api" "$APP_DIR/"
-cp -r "$SOURCE_DIR/ui"  "$APP_DIR/"
+mkdir -p "$WEB_TARGET"
+cp -r "$SOURCE_DIR/api" "$WEB_TARGET/"
+cp -r "$SOURCE_DIR/ui"  "$WEB_TARGET/"
 
 # Copy package.json from the web root (parent of dist)
-cp "$(dirname "$SOURCE_DIR")/package.json" "$APP_DIR/"
+cp "$(dirname "$SOURCE_DIR")/package.json" "$WEB_TARGET/"
 
-chown -R "$SERVICE_USER":"$SERVICE_USER" "$APP_DIR"
-cd "$APP_DIR"
-sudo -u "$SERVICE_USER" npm install --omit=dev
+# Strip devDependencies and peerDependencies to prevent OOM during install
+node -e "
+const fs = require('fs');
+const path = '$WEB_TARGET/package.json';
+const pkg = JSON.parse(fs.readFileSync(path));
+delete pkg.devDependencies;
+delete pkg.peerDependencies;
+fs.writeFileSync(path, JSON.stringify(pkg, null, 2));
+"
+
+chown -R "$WEB_USER":"$WEB_USER" "$WEB_TARGET"
+cd "$WEB_TARGET"
+sudo -u "$WEB_USER" npm install --omit=dev
 
 log "Files installed and dependencies ready."
 
@@ -108,14 +117,17 @@ log "Files installed and dependencies ready."
 info "Step 4/4: Setting up systemd service..."
 
 # Copy the service file from web/service/
-cp "$(dirname "$SOURCE_DIR")/service/moonboard_web.service" "/etc/systemd/system/${APP_NAME}.service"
+cp "$(dirname "$SOURCE_DIR")/service/moonboard_web.service" "/etc/systemd/system/${WEB_APP_NAME}.service"
+
+# Update the service User to match the script configuration
+sed -i "s/^User=.*/User=$WEB_USER/" "/etc/systemd/system/${WEB_APP_NAME}.service"
 
 systemctl daemon-reload
-systemctl enable "$APP_NAME"
-systemctl start "$APP_NAME"
+systemctl enable "$WEB_APP_NAME"
+systemctl start "$WEB_APP_NAME"
 
 sleep 2
-systemctl is-active --quiet "$APP_NAME" || error "Service failed to start. Check logs: journalctl -u $APP_NAME -n 50"
+systemctl is-active --quiet "$WEB_APP_NAME" || error "Service failed to start. Check logs: journalctl -u $WEB_APP_NAME -n 50"
 
 # -----------------------------------------------------------------------------
 # Done
@@ -125,10 +137,10 @@ echo -e "${GREEN}==============================${NC}"
 echo -e "${GREEN}  Installation complete!${NC}"
 echo -e "${GREEN}==============================${NC}"
 echo ""
-echo -e "  URL     : ${BLUE}http://$(hostname -I | awk '{print $1}'):$APP_PORT${NC}"
-echo -e "  App dir : ${BLUE}$APP_DIR${NC}"
+echo -e "  URL     : ${BLUE}http://$(hostname -I | awk '{print $1}'):$WEB_PORT${NC}"
+echo -e "  App dir : ${BLUE}$WEB_TARGET${NC}"
 echo ""
-echo -e "  ${YELLOW}sudo systemctl status $APP_NAME${NC}   — status"
-echo -e "  ${YELLOW}sudo systemctl restart $APP_NAME${NC}  — restart"
-echo -e "  ${YELLOW}journalctl -u $APP_NAME -f${NC}        — live logs"
+echo -e "  ${YELLOW}sudo systemctl status $WEB_APP_NAME${NC}   — status"
+echo -e "  ${YELLOW}sudo systemctl restart $WEB_APP_NAME${NC}  — restart"
+echo -e "  ${YELLOW}journalctl -u $WEB_APP_NAME -f${NC}        — live logs"
 echo ""

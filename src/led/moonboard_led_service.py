@@ -36,7 +36,7 @@ def new_problem_cb(mb, holds_string):
     global timeout_id
     holds = json.loads(holds_string)
     mb.show_problem(holds)
-    response = requests.post("http://localhost:3001/api/holds", json=holds)
+    response = requests.post("http://localhost:3000/api/holds", json=holds)
     if response.status_code == 200:
         logger.info("Holds data sent successfully")
     else:

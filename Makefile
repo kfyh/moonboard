@@ -11,6 +11,8 @@ ifneq ($(SD_DRIVE),)
 	@sudo mount -t drvfs $(SD_DRIVE): $(BOOTFS)
 endif
 
+	@echo "→ Cleaning old installation..."
+	rm -rf $(BOOTFS)/moonboard
 	@echo "→ Copying project files to $(BOOTFS)/moonboard/"
 	mkdir -p $(BOOTFS)/moonboard
 	cp -r src/ble $(BOOTFS)/moonboard/
@@ -28,7 +30,9 @@ endif
 	chmod +x $(BOOTFS)/moonboard/install/web-install.sh
 
 	@echo "→ Ensuring cmdline.txt is clean (Removing old init= hooks if present)"
-	@sed -i 's| init=/boot/firmware/firstrun.sh||g' $(BOOTFS)/cmdline.txt
+	@if [ -f $(BOOTFS)/cmdline.txt ]; then \
+		sed -i.bak 's| init=/boot/firmware/firstrun.sh||g' $(BOOTFS)/cmdline.txt && rm $(BOOTFS)/cmdline.txt.bak; \
+	fi
 
 	@echo "→ Injecting trigger into Cloud-Init user-data..."
 	@if [ -f $(BOOTFS)/user-data ]; then \

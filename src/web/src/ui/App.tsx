@@ -7,7 +7,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchHolds = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/holds');
+        const response = await fetch('/api/holds');
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         const data = await response.json();
         setHolds(data);

@@ -28,7 +28,8 @@ const uiConfig = {
   entry: './src/ui/index.tsx',
   output: {
     path: path.resolve(__dirname, 'dist/ui'),
-    filename: 'bundle.js',
+    filename: '[name].[contenthash].js',
+    clean: true,
   },
   module: {
     rules: [
@@ -56,7 +57,13 @@ const uiConfig = {
       directory: path.join(__dirname, 'dist/ui'),
     },
     compress: true,
-    port: 3000,
+    port: process.env.UI_PORT || 3000,
+    proxy: [
+      {
+        context: ['/api'],
+        target: 'http://localhost:3001',
+      },
+    ],
   },
 };
 

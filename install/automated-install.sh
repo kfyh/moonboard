@@ -9,8 +9,11 @@ exec > >(tee -a "$LOGFILE") 2>&1
 
 # Get the actual user created by Imager (usually the first UID 1000)
 REAL_USER=$(id -nu 1000 || echo "pi")
+
+# Load shared config
+source "$(dirname "$0")/config.sh"
+
 PROJECT_DIR="/boot/firmware/moonboard"
-INSTALL_TARGET="/opt/moonboard"
 
 echo "Starting Moonboard Installation..."
 
@@ -54,11 +57,11 @@ make -C "$INSTALL_TARGET/led" install
 # Ensure services are enabled (via Makefiles) and then start them
 echo "Starting Moonboard services..."
 sudo systemctl daemon-reload
-sudo systemctl start com.moonboard.service
-sudo systemctl start moonboard_led.service
+sudo systemctl start "$BLE_SERVICE"
+sudo systemctl start "$LED_SERVICE"
 
 # Quick verification check
-sudo systemctl is-active com.moonboard.service moonboard_led.service
+sudo systemctl is-active "$BLE_SERVICE" "$LED_SERVICE"
 
 echo "Installation complete. This script will not run again."
 # No need to edit cmdline.txt or delete itself; 

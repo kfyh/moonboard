@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
+User=admin
 WorkingDirectory=/home/moonboard_web
 ExecStart=/usr/bin/node /home/moonboard_web/api/index.js
 Restart=on-failure
