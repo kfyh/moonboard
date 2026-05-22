@@ -42,7 +42,6 @@ class MoonAdvertisement(Advertisement):
         Advertisement.__init__(self, bus, index, 'peripheral')
         self.add_service_uuid(UART_SERVICE_UUID)
         self.add_local_name(LOCAL_NAME)
-#        self.include_tx_power = True
 
 class MoonApplication(dbus.service.Object):
     IFACE = "com.moonboard.method"
