@@ -32,9 +32,9 @@ The hardware used for this project was:
   - **On Windows (via WSL):** Run `sudo make deploy SD_DRIVE=D`, where `D` is the drive letter of your SD Card. The script handles mounting and unmounting.
   - **On macOS:** The boot partition typically mounts at `/Volumes/bootfs`. Run `sudo make deploy BOOTFS=/Volumes/bootfs`, then eject the card.
   - **On Linux/Unix:** Mount the SD card's boot partition and run `sudo make deploy BOOTFS=/path/to/bootfs`. Unmount it when done.
-- Insert the SD Card into your Raspberry Pi and power it on
-- Log in to your Raspberry Pi and run: `sudo /boot/firmware/moonboard/install/automated-install.sh`
-- Note that your Raspberry Pi will reboot automatically upon completion.
+- Insert the SD Card into your Raspberry Pi and power it on.
+- The Pi will automatically run the installation script on first boot and reboot upon completion. No manual login or configuration is required.
+
 
 - To test load the Moonboard app on your phone, click on a problem, then click the light icon. 
 - This will ask you if you want to connect to a moonboard, click yes
@@ -64,7 +64,37 @@ Free standing foldaway version of moonboard. Moonboard with 150mm kicker and tot
 ## Tested setups
 - Raspi W Zero with iPhone 5, 8, X, 11 (iOS >= 14)
 
+# Development
+
+To set up the development environment, run tests, or work on the web application locally:
+
+### 1. Setup Local Dependencies
+Set up the Python virtual environment and install development dependencies:
+```bash
+make install-deps
+```
+
+### 2. Running Unit Tests
+You can run the Python unit tests locally using:
+```bash
+make test
+```
+
+### 3. Developing and Building the Web UI
+The React web application source is located in `src/web/`.
+* To run the local development server for the web app:
+  ```bash
+  cd src/web
+  npm install
+  npm run dev
+  ```
+* To compile a production build of the Web UI (which gets copied during deployment):
+  ```bash
+  make build-web
+  ```
+
 # Versions
 - v0.28 merged moonboard mini protocol
 - v0.27 merged bt fix test
 - v0.23 running in gz setup
+
