@@ -20,6 +20,7 @@ def test_led_service_integration():
          patch('moonboard.MoonBoard') as MockMoonBoard, \
          patch('sys.argv', [script_path, '--driver_type', 'SimPixel']), \
          patch('time.sleep'), \
+         patch('requests.post') as mock_post, \
          patch.dict('sys.modules', {'RPi': MagicMock(), 'RPi.GPIO': MagicMock()}):
 
         # Setup mock objects

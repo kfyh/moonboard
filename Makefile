@@ -34,11 +34,8 @@ endif
 		sed -i.bak 's| init=/boot/firmware/firstrun.sh||g' $(BOOTFS)/cmdline.txt && rm $(BOOTFS)/cmdline.txt.bak; \
 	fi
 
-	@echo "→ Injecting trigger into Cloud-Init user-data..."
-	@if [ -f $(BOOTFS)/user-data ]; then \
-		echo "runcmd:" >> $(BOOTFS)/user-data; \
-		echo "  - [ /boot/firmware/moonboard/install/automated-install.sh ]" >> $(BOOTFS)/user-data; \
-	fi
+	@echo "→ Injecting trigger into Cloud-Init configuration..."
+	python3 install/inject-user-data.py $(BOOTFS)
 
 ifneq ($(SD_DRIVE),)
 	@sudo umount $(BOOTFS)
