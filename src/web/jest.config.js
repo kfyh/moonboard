@@ -3,6 +3,6 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/test/**/*.test.ts', '**/test/**/*.test.tsx'],
   moduleNameMapper: {
-    '\.(css|less)$': '<rootDir>/test/styleMock.js',
+    '\\.(css|less|png|jpg|jpeg|gif)$': '<rootDir>/test/styleMock.js',
   },
 };

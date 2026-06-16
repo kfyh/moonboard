@@ -38,13 +38,18 @@ log "Core files updated."
 
 # 2. Update Web Files
 info "Updating Web files to $WEB_TARGET..."
-if [[ -d "$REPO_ROOT/web/dist" ]]; then
+if [[ -d "$REPO_ROOT/src/web/dist" ]]; then
+    cp -r "$REPO_ROOT/src/web/dist/api" "$WEB_TARGET/"
+    cp -r "$REPO_ROOT/src/web/dist/ui"  "$WEB_TARGET/"
+    chown -R "$WEB_USER":"$WEB_USER" "$WEB_TARGET"
+    log "Web files updated from src/web/dist."
+elif [[ -d "$REPO_ROOT/web/dist" ]]; then
     cp -r "$REPO_ROOT/web/dist/api" "$WEB_TARGET/"
     cp -r "$REPO_ROOT/web/dist/ui"  "$WEB_TARGET/"
     chown -R "$WEB_USER":"$WEB_USER" "$WEB_TARGET"
-    log "Web files updated."
+    log "Web files updated from web/dist."
 else
-    echo "Warning: Web dist folder ($REPO_ROOT/web/dist) not found. Skipping web update."
+    echo "Warning: Web dist folder not found in src/web/dist or web/dist. Skipping web update."
 fi
 
 # 3. Restart Services

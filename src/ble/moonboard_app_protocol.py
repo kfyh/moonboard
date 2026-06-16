@@ -55,6 +55,8 @@ class UnstuffSequence():
         try:
             s = bytearray.fromhex(ba).decode(errors="ignore")
             self.logger.debug("incoming bytes:"+str(s))
+            if not s:
+                return None
             
             if s[0] == '~' and s[-1] == '*':
                 # Flag processing
