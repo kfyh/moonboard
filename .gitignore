@@ -10,3 +10,5 @@ node_modules/
 dist/
 *.log
 venv/
+prompt.txt
+tasklist.md

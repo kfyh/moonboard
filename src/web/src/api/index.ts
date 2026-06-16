@@ -101,10 +101,10 @@ const GRID_CONFIG_FILE = path.resolve(__dirname, '../../dist/grid_config.json');
 const LED_MAPPINGS_FILE = path.resolve(__dirname, '../../../src/led/led_mapping.json');
 
 const DEFAULT_GRID_CONFIG = {
-  leftPercent: 7.5,
-  rightPercent: 92.5,
-  topPercent: 8.0,
-  bottomPercent: 92.0,
+  leftPercent: 14.4,
+  rightPercent: 91.8,
+  topPercent: 6.7,
+  bottomPercent: 91
 };
 
 // GET /api/grid-config
@@ -172,4 +172,4 @@ if (process.env.NODE_ENV !== 'test') {
   app.listen(Number(port), '0.0.0.0', () => {
     console.log(`Server is running on http://0.0.0.0:${port}`);
   });
-}
+}
