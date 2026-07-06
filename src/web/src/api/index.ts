@@ -159,12 +159,17 @@ app.post('/api/led-mappings', async (req, res) => {
   }
 });
 
+// Explicit root route serving the React UI
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../ui/index.html'));
+});
+
 app.get('/api', (req, res) => {
   res.send('Hello World!');
 });
 
-// Catch-all: defer unmatched routes to React
-app.get(/(.*)/, (req, res) => {
+// Catch-all: defer unmatched routes to React (Express 5 compatible wildcard)
+app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, '../ui/index.html'));
 });
 
