@@ -27,14 +27,16 @@ The hardware used for this project was:
 
 # Software Installation
 
-- Use Raspberry Pi Imager to install Raspberry Pi OS Lite (bookworm) onto your sd card
+- **Choose a compatible OS image:** To use the headless, automated first-boot installation, your OS must natively support **cloud-init** (which is the modern standard replacing legacy `firstrun.sh` setups).
+  * **Best Option (Recommended):** Use Raspberry Pi Imager to install **Raspberry Pi OS (Debian Trixie - released November 24, 2025 or newer)**, either Lite or Desktop.
+  * **Alternative:** **Ubuntu Server for Raspberry Pi** (which natively supports `cloud-init` out of the box).
+  * *Note:* If you use older Debian Bookworm images, `cloud-init` is not pre-installed, and the automated script will be ignored. You will need to install services manually over SSH (see the **Troubleshooting** section).
 - Deploy the project files to the SD card's boot partition:
   - **On Windows (via WSL):** Run `sudo make deploy SD_DRIVE=D`, where `D` is the drive letter of your SD Card. The script handles mounting and unmounting.
   - **On macOS:** The boot partition typically mounts at `/Volumes/bootfs`. Run `sudo make deploy BOOTFS=/Volumes/bootfs`, then eject the card.
   - **On Linux/Unix:** Mount the SD card's boot partition and run `sudo make deploy BOOTFS=/path/to/bootfs`. Unmount it when done.
 - Insert the SD Card into your Raspberry Pi and power it on.
 - The Pi will automatically run the installation script on first boot and reboot upon completion. No manual login or configuration is required.
-
 
 - To test load the Moonboard app on your phone, click on a problem, then click the light icon. 
 - This will ask you if you want to connect to a moonboard, click yes

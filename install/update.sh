@@ -52,8 +52,15 @@ else
     echo "Warning: Web dist folder not found in src/web/dist or web/dist. Skipping web update."
 fi
 
-# 3. Restart Services
+# 3. Restart Services (only if they are installed)
 info "Restarting services..."
-systemctl restart "$BLE_SERVICE" "$LED_SERVICE" "$WEB_SERVICE"
+for svc in "$BLE_SERVICE" "$LED_SERVICE" "$WEB_SERVICE"; do
+    if [[ $(systemctl show -p LoadState "$svc" --value) != "not-found" ]]; then
+        info "  Restarting $svc..."
+        systemctl restart "$svc"
+    else
+        echo "  Service $svc is not installed yet. Skipping restart."
+    fi
+done
 
 log "Update complete and services restarted!"

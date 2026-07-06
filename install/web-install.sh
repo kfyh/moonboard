@@ -11,7 +11,7 @@ set -e
 # Load shared config
 source "$(dirname "$0")/config.sh"
 
-SOURCE_DIR="/boot/firmware/moonboard/web/dist"
+SOURCE_DIR="${SOURCE_DIR:-/boot/firmware/moonboard/web/dist}"
 NODE_VERSION="20"
 
 # -----------------------------------------------------------------------------

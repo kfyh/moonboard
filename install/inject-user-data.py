@@ -13,7 +13,7 @@ def main():
     network_config_path = os.path.join(bootfs, "network-config")
     
     command = "/boot/firmware/moonboard/install/automated-install.sh"
-    runcmd_entry = f"  - [ {command} ]\n"
+    runcmd_entry = f"  - [ /bin/bash, {command} ]\n"
     
     print(f"Injecting automated-install trigger into {user_data_path}...")
     

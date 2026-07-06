@@ -54,14 +54,19 @@ sudo raspi-config nonint do_spi 0
 make -C "$INSTALL_TARGET/ble" install
 make -C "$INSTALL_TARGET/led" install
 
+# Install Moonboard Web interface and service
+echo "Installing Moonboard Web service..."
+bash "$INSTALL_TARGET/install/web-install.sh"
+
 # Ensure services are enabled (via Makefiles) and then start them
 echo "Starting Moonboard services..."
 sudo systemctl daemon-reload
 sudo systemctl start "$BLE_SERVICE"
 sudo systemctl start "$LED_SERVICE"
+sudo systemctl start "$WEB_SERVICE"
 
 # Quick verification check
-sudo systemctl is-active "$BLE_SERVICE" "$LED_SERVICE"
+sudo systemctl is-active "$BLE_SERVICE" "$LED_SERVICE" "$WEB_SERVICE"
 
 echo "Installation complete. This script will not run again."
 # No need to edit cmdline.txt or delete itself; 

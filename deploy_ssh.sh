@@ -32,10 +32,22 @@ USER=${USER:-$DEFAULT_USER}
 
 TARGET="$USER@$HOST"
 
-info "Verifying SSH connection to $TARGET..."
-if ! ssh -o ConnectTimeout=5 "$TARGET" "echo 'Connection successful'" &>/dev/null; then
+# Setup SSH connection sharing (multiplexing) to support password auth without multiple prompts
+SSH_SOCKET="/tmp/ssh_mux_${HOST}_${USER}"
+SSH_OPTS=(-o "ControlMaster=auto" -o "ControlPath=$SSH_SOCKET" -o "ControlPersist=600" -o "ConnectTimeout=5" -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null")
+
+cleanup_ssh_mux() {
+    info "Closing master SSH connection..."
+    ssh "${SSH_OPTS[@]}" -O exit "$TARGET" 2>/dev/null || true
+}
+trap cleanup_ssh_mux EXIT
+
+info "Verifying SSH connection to $TARGET (you may need to enter your SSH password)..."
+# We only redirect stdout so the password prompt from ssh on stderr/tty is visible
+if ! ssh "${SSH_OPTS[@]}" "$TARGET" "true"; then
     error "Could not connect to $TARGET. Please check IP/Host, username, and SSH setup."
 fi
+log "Connection successful!"
 
 # Optional web build
 read -p "Build React Web UI locally first? (y/n) [n]: " BUILD_WEB
@@ -50,13 +62,14 @@ fi
 
 # Create remote temp deploy directory
 info "Preparing temp directory on Raspberry Pi..."
-ssh "$TARGET" "mkdir -p /tmp/moonboard_deploy/web"
+ssh "${SSH_OPTS[@]}" "$TARGET" "mkdir -p /tmp/moonboard_deploy/web"
 
 # Rsync files to the RPi
 info "Copying files to $TARGET:/tmp/moonboard_deploy/..."
 
 # Sync python code and installation scripts
 rsync -avz --delete \
+    -e "ssh -o ControlPath=$SSH_SOCKET" \
     --exclude="*__pycache__*" \
     src/ble src/led install \
     "$TARGET:/tmp/moonboard_deploy/"
@@ -64,6 +77,7 @@ rsync -avz --delete \
 # Sync web build and configuration files
 if [[ -d "src/web/dist" ]]; then
     rsync -avz --delete \
+        -e "ssh -o ControlPath=$SSH_SOCKET" \
         src/web/dist src/web/service src/web/package.json \
         "$TARGET:/tmp/moonboard_deploy/web/"
 else
@@ -72,10 +86,10 @@ fi
 
 # Execute update on the Pi
 info "Executing installer on Raspberry Pi (you may be prompted for your sudo password)..."
-ssh -t "$TARGET" "sudo /tmp/moonboard_deploy/install/update.sh"
+ssh "${SSH_OPTS[@]}" -t "$TARGET" "sudo /tmp/moonboard_deploy/install/update.sh"
 
 # Cleanup
 info "Cleaning up temp files on Pi..."
-ssh "$TARGET" "rm -rf /tmp/moonboard_deploy"
+ssh "${SSH_OPTS[@]}" "$TARGET" "rm -rf /tmp/moonboard_deploy"
 
 log "Deployment and service restarts completed successfully!"
