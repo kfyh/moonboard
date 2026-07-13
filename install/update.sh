@@ -80,6 +80,46 @@ else
 fi
 
 # 3. Restart Services (only if they are installed)
+# Install pi-bluetooth and bluez-firmware if missing
+if ! dpkg -s pi-bluetooth &>/dev/null || ! dpkg -s bluez-firmware &>/dev/null; then
+    info "Installing missing pi-bluetooth and bluez-firmware packages..."
+    apt-get update
+    apt-get install -y pi-bluetooth bluez-firmware
+fi
+
+# Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
+if [ -f /etc/bluetooth/main.conf ]; then
+    info "Configuring BlueZ to use Legacy Advertising..."
+    if grep -q "^#\?ExtendedAdvertising[[:space:]]*=" /etc/bluetooth/main.conf; then
+        sed -i 's/^#\?ExtendedAdvertising[[:space:]]*=.*/ExtendedAdvertising = false/' /etc/bluetooth/main.conf
+    else
+        sed -i '/^\[General\]/a ExtendedAdvertising = false' /etc/bluetooth/main.conf
+    fi
+fi
+
+# Ensure bluetooth is not blocked by RF-kill and reset its state
+if command -v rfkill &> /dev/null; then
+    info "Checking Bluetooth RF-kill status..."
+    if rfkill list bluetooth | grep -q "yes"; then
+        info "Bluetooth is blocked by RF-kill. Unblocking..."
+        rfkill unblock bluetooth
+        sleep 1
+    fi
+fi
+if systemctl is-active --quiet bluetooth; then
+    info "Restarting system bluetooth daemon..."
+    systemctl restart bluetooth
+    sleep 2
+    
+    if command -v bluetoothctl &>/dev/null; then
+        info "Setting Bluetooth system alias to 'Moonboard A'..."
+        for controller in $(bluetoothctl list | awk '{print $2}'); do
+            bluetoothctl select "$controller" || true
+            bluetoothctl system-alias "Moonboard A" || true
+        done
+    fi
+fi
+
 info "Restarting services..."
 for svc in "$BLE_SERVICE" "$LED_SERVICE" "$WEB_SERVICE"; do
     if [[ $(systemctl show -p LoadState "$svc" --value) != "not-found" ]]; then
