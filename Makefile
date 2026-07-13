@@ -1,4 +1,4 @@
-.PHONY: deploy install-deps test build-web
+.PHONY: deploy install-deps test build-web build-image
 
 # Path to the mounted bootfs (FAT32) partition.
 BOOTFS ?= /mnt/bootfs
@@ -21,9 +21,11 @@ endif
 
 	@echo "→ Copying Web UI..."
 	mkdir -p $(BOOTFS)/moonboard/web
-	cp -r src/web/dist $(BOOTFS)/moonboard/web/
-	cp -r src/web/service $(BOOTFS)/moonboard/web/
-	cp src/web/package.json $(BOOTFS)/moonboard/web/
+	@if command -v rsync >/dev/null 2>&1; then \
+		rsync -r --exclude='node_modules' --exclude='dist' src/web/ $(BOOTFS)/moonboard/web/; \
+	else \
+		tar --exclude='node_modules' --exclude='dist' -cf - -C src/web . | tar -xf - -C $(BOOTFS)/moonboard/web; \
+	fi
 
 	@echo "→ Make automated-install.sh runnable..."
 	chmod +x $(BOOTFS)/moonboard/install/automated-install.sh
@@ -46,9 +48,11 @@ endif
 
 install-deps:
 	@echo "→ Setting up Virtual Environment..."
-	@if [ -d "venv" ] && [ ! -f "./venv/bin/pip" ]; then \
-		echo "→ Detected incompatible venv (likely Windows-created). Recreating..."; \
-		rm -rf venv; \
+	@if [ -d "venv" ]; then \
+		if [ ! -f "./venv/bin/pip" ] || ! ./venv/bin/python3 --version >/dev/null 2>&1; then \
+			echo "→ Detected incompatible or broken venv. Recreating..."; \
+			rm -rf venv; \
+		fi; \
 	fi
 	test -d venv || python3 -m venv venv
 	@echo "→ Installing Python Dev dependencies..."
@@ -59,6 +63,10 @@ install-deps:
 build-web:
 	@echo "→ Building Web UI..."
 	cd ./src/web && npm run build
+
+build-image:
+	@echo "→ Running build-image script..."
+	sudo bash install/build-image.sh
 
 test:
 	@echo "→ Running Python tests..."

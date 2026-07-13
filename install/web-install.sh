@@ -10,8 +10,9 @@ set -e
 
 # Load shared config
 source "$(dirname "$0")/config.sh"
+optimize_low_memory
 
-SOURCE_DIR="${SOURCE_DIR:-/boot/firmware/moonboard/web/dist}"
+SOURCE_DIR="${SOURCE_DIR:-/boot/firmware/moonboard/web}"
 NODE_VERSION="20"
 
 # -----------------------------------------------------------------------------
@@ -35,10 +36,9 @@ echo ""
 # -----------------------------------------------------------------------------
 info "Step 1/4: Checking source files..."
 
-[[ -d "$SOURCE_DIR/api" ]]           || error "Missing $SOURCE_DIR/api"
-[[ -f "$SOURCE_DIR/api/index.js" ]]  || error "Missing $SOURCE_DIR/api/index.js"
-[[ -d "$SOURCE_DIR/ui" ]]            || error "Missing $SOURCE_DIR/ui"
-[[ -f "$SOURCE_DIR/ui/index.html" ]] || error "Missing $SOURCE_DIR/ui/index.html"
+[[ -f "$SOURCE_DIR/package.json" ]]      || error "Missing $SOURCE_DIR/package.json"
+[[ -f "$SOURCE_DIR/src/api/index.ts" ]]  || error "Missing $SOURCE_DIR/src/api/index.ts"
+[[ -f "$SOURCE_DIR/src/ui/index.tsx" ]]  || error "Missing $SOURCE_DIR/src/ui/index.tsx"
 
 log "Source files found at $SOURCE_DIR"
 
@@ -50,6 +50,7 @@ info "Step 2/4: Checking Node.js..."
 if command -v node &>/dev/null; then
   log "Node.js already installed ($(node -v)). Skipping."
 else
+  wait_for_apt_locks
   apt-get update -qq
   CANDIDATE=$(apt-cache policy nodejs | grep Candidate | awk '{print $2}')
   MAJOR_VER=$(echo "$CANDIDATE" | cut -d. -f1)
@@ -88,26 +89,33 @@ if systemctl is-active --quiet "$WEB_APP_NAME" 2>/dev/null; then
   systemctl stop "$WEB_APP_NAME"
 fi
 
+# Clean target directory first (excluding existing grid_config.json, led_mapping.json, etc.)
+rm -rf "$WEB_TARGET/node_modules" "$WEB_TARGET/dist"
+
 mkdir -p "$WEB_TARGET"
-cp -r "$SOURCE_DIR/api" "$WEB_TARGET/"
-cp -r "$SOURCE_DIR/ui"  "$WEB_TARGET/"
+if command -v rsync &>/dev/null; then
+  rsync -r --exclude="node_modules" --exclude="dist" "$SOURCE_DIR/" "$WEB_TARGET/"
+else
+  tar --exclude="node_modules" --exclude="dist" -cf - -C "$SOURCE_DIR" . | tar -xf - -C "$WEB_TARGET"
+fi
 
-# Copy package.json from the web root (parent of dist)
-cp "$(dirname "$SOURCE_DIR")/package.json" "$WEB_TARGET/"
-
-# Strip devDependencies and peerDependencies to prevent OOM during install
-node -e "
-const fs = require('fs');
-const path = '$WEB_TARGET/package.json';
-const pkg = JSON.parse(fs.readFileSync(path));
-delete pkg.devDependencies;
-delete pkg.peerDependencies;
-fs.writeFileSync(path, JSON.stringify(pkg, null, 2));
-"
+# Copy src/led/led_mapping.json to /home/moonboard_web/led_mapping.json if it doesn't already exist
+if [[ ! -f "$WEB_TARGET/led_mapping.json" ]]; then
+  if [[ -f "/boot/firmware/moonboard/led/led_mapping.json" ]]; then
+    cp "/boot/firmware/moonboard/led/led_mapping.json" "$WEB_TARGET/led_mapping.json"
+  elif [[ -f "/opt/moonboard/led/led_mapping.json" ]]; then
+    cp "/opt/moonboard/led/led_mapping.json" "$WEB_TARGET/led_mapping.json"
+  elif [[ -f "$(dirname "$SOURCE_DIR")/led/led_mapping.json" ]]; then
+    cp "$(dirname "$SOURCE_DIR")/led/led_mapping.json" "$WEB_TARGET/led_mapping.json"
+  fi
+fi
 
 chown -R "$WEB_USER":"$WEB_USER" "$WEB_TARGET"
 cd "$WEB_TARGET"
-sudo -u "$WEB_USER" npm install --omit=dev
+
+# Install and build on device
+sudo -u "$WEB_USER" env NODE_OPTIONS="${NODE_OPTIONS:-}" npm install
+sudo -u "$WEB_USER" env NODE_OPTIONS="${NODE_OPTIONS:-}" npm run build
 
 log "Files installed and dependencies ready."
 

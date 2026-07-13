@@ -14,6 +14,7 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Load Shared Configuration
 source "$SCRIPT_DIR/config.sh"
+optimize_low_memory
 
 # Colors for output
 GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
@@ -38,18 +39,44 @@ log "Core files updated."
 
 # 2. Update Web Files
 info "Updating Web files to $WEB_TARGET..."
-if [[ -d "$REPO_ROOT/src/web/dist" ]]; then
-    cp -r "$REPO_ROOT/src/web/dist/api" "$WEB_TARGET/"
-    cp -r "$REPO_ROOT/src/web/dist/ui"  "$WEB_TARGET/"
-    chown -R "$WEB_USER":"$WEB_USER" "$WEB_TARGET"
-    log "Web files updated from src/web/dist."
-elif [[ -d "$REPO_ROOT/web/dist" ]]; then
-    cp -r "$REPO_ROOT/web/dist/api" "$WEB_TARGET/"
-    cp -r "$REPO_ROOT/web/dist/ui"  "$WEB_TARGET/"
-    chown -R "$WEB_USER":"$WEB_USER" "$WEB_TARGET"
-    log "Web files updated from web/dist."
+
+if [[ -d "$REPO_ROOT/src/web" ]]; then
+    WEB_SRC="$REPO_ROOT/src/web"
+elif [[ -d "$REPO_ROOT/web" ]]; then
+    WEB_SRC="$REPO_ROOT/web"
 else
-    echo "Warning: Web dist folder not found in src/web/dist or web/dist. Skipping web update."
+    WEB_SRC=""
+fi
+
+if [[ -n "$WEB_SRC" ]]; then
+    if systemctl is-active --quiet "$WEB_SERVICE" 2>/dev/null; then
+        systemctl stop "$WEB_SERVICE"
+    fi
+
+    rm -rf "$WEB_TARGET/node_modules" "$WEB_TARGET/dist"
+    mkdir -p "$WEB_TARGET"
+    if command -v rsync &>/dev/null; then
+        rsync -r --exclude="node_modules" --exclude="dist" "$WEB_SRC/" "$WEB_TARGET/"
+    else
+        tar --exclude="node_modules" --exclude="dist" -cf - -C "$WEB_SRC" . | tar -xf - -C "$WEB_TARGET"
+    fi
+
+    if [[ ! -f "$WEB_TARGET/led_mapping.json" ]]; then
+        if [[ -f "$REPO_ROOT/src/led/led_mapping.json" ]]; then
+            cp "$REPO_ROOT/src/led/led_mapping.json" "$WEB_TARGET/led_mapping.json"
+        elif [[ -f "$INSTALL_TARGET/led/led_mapping.json" ]]; then
+            cp "$INSTALL_TARGET/led/led_mapping.json" "$WEB_TARGET/led_mapping.json"
+        fi
+    fi
+
+    chown -R "$WEB_USER":"$WEB_USER" "$WEB_TARGET"
+    
+    cd "$WEB_TARGET"
+    sudo -u "$WEB_USER" env NODE_OPTIONS="${NODE_OPTIONS:-}" npm install
+    sudo -u "$WEB_USER" env NODE_OPTIONS="${NODE_OPTIONS:-}" npm run build
+    log "Web files updated and compiled."
+else
+    echo "Warning: Web source folder not found in src/web or web. Skipping web update."
 fi
 
 # 3. Restart Services (only if they are installed)

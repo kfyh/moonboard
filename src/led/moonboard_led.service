@@ -5,7 +5,7 @@ Wants=com.moonboard.service
 
 [Service]
 WorkingDirectory=/opt/moonboard/led/
-ExecStart=/usr/bin/python3 /opt/moonboard/led/moonboard_led_service.py
+ExecStart=/usr/bin/python3 /opt/moonboard/led/moonboard_led_service.py --led_mapping /home/moonboard_web/led_mapping.json
 Type=simple
 TimeoutStartSec=130s
 User=root

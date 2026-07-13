@@ -75,10 +75,10 @@ describe('Backend API Tests', () => {
     const res = await request(app).get('/api/grid-config');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      leftPercent: 7.5,
-      rightPercent: 92.5,
-      topPercent: 8.0,
-      bottomPercent: 92.0,
+      leftPercent: 14.4,
+      rightPercent: 91.8,
+      topPercent: 6.7,
+      bottomPercent: 91,
     });
   });
 
