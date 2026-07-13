@@ -38,6 +38,30 @@ The hardware used for this project was:
 - Insert the SD Card into your Raspberry Pi and power it on.
 - The Pi will automatically run the installation script on first boot and reboot upon completion. No manual login or configuration is required.
 
+### Baking a Pre-Baked Image (Linux hosts only)
+
+If you are running Linux (such as Fedora Workstation, Ubuntu, or Debian) on your development computer, you can build a customized, fully pre-baked image file offline. All packages, Python modules, and the compiled Web UI will be pre-installed inside the image on your computer, so the Raspberry Pi does not need internet access when booting up.
+
+1. **Install Host Prerequisites**:
+   Ensure you have the required loopback, kpartx, and QEMU user-mode packages installed:
+   - **On Fedora Workstation:**
+     ```bash
+     sudo dnf install -y qemu-user-static kpartx xz unzip wget
+     ```
+   - **On Ubuntu/Debian:**
+     ```bash
+     sudo apt-get install -y qemu-user-static binfmt-support kpartx xz-utils unzip wget
+     ```
+2. **Build the Image**:
+   Run the following command from the workspace root:
+   ```bash
+   make build-image
+   ```
+   This script will verify the host environment, download the latest Raspberry Pi OS Lite (32-bit Trixie), mount its partitions via loopback, run a `qemu-user-static` chroot to install packages and compile the Web UI, and output a ready-to-flash image at `dist/moonboard_trixie_baked.img`.
+3. **Flash the Image**:
+   Flash the generated `dist/moonboard_trixie_baked.img` to your SD card using Raspberry Pi Imager or `dd`.
+
+
 - To test load the Moonboard app on your phone, click on a problem, then click the light icon. 
 - This will ask you if you want to connect to a moonboard, click yes
 

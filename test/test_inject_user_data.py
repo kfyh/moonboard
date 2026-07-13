@@ -31,7 +31,7 @@ def test_new_bootfs_creation(tmp_path):
     content = user_data_file.read_text()
     assert "#cloud-config" in content
     assert "runcmd:" in content
-    assert "- [ /boot/firmware/moonboard/install/automated-install.sh ]" in content
+    assert "- [ /bin/bash, /boot/firmware/moonboard/install/automated-install.sh ]" in content
 
     # Verify other files comments
     assert "empty meta-data" in meta_data_file.read_text()
@@ -54,7 +54,7 @@ def test_existing_runcmd(tmp_path):
     assert "timezone: Europe/London" in content
     assert "runcmd:" in content
     assert "  - [ echo, 'hello' ]" in content
-    assert "- [ /boot/firmware/moonboard/install/automated-install.sh ]" in content
+    assert "- [ /bin/bash, /boot/firmware/moonboard/install/automated-install.sh ]" in content
 
 def test_existing_no_runcmd(tmp_path):
     """Verify injection creates runcmd block if user-data exists without it."""
@@ -70,7 +70,7 @@ def test_existing_no_runcmd(tmp_path):
     content = user_data_file.read_text()
     assert "timezone: Europe/London" in content
     assert "runcmd:" in content
-    assert "- [ /boot/firmware/moonboard/install/automated-install.sh ]" in content
+    assert "- [ /bin/bash, /boot/firmware/moonboard/install/automated-install.sh ]" in content
 
 def test_already_injected(tmp_path):
     """Verify injection is skipped if trigger is already present."""

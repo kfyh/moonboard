@@ -12,6 +12,7 @@ REAL_USER=$(id -nu 1000 || echo "pi")
 
 # Load shared config
 source "$(dirname "$0")/config.sh"
+optimize_low_memory
 
 PROJECT_DIR="/boot/firmware/moonboard"
 
@@ -29,6 +30,7 @@ for i in {1..30}; do
 done
 
 # ── System packages ──────────────────────────────────────────────────────────
+wait_for_apt_locks
 apt-get update
 apt-get install -y python3 python3-pip dos2unix avahi-daemon \
     python3-dbus python3-gi bluez bluetooth \

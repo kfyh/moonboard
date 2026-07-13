@@ -49,17 +49,6 @@ if ! ssh "${SSH_OPTS[@]}" "$TARGET" "true"; then
 fi
 log "Connection successful!"
 
-# Optional web build
-read -p "Build React Web UI locally first? (y/n) [n]: " BUILD_WEB
-BUILD_WEB=${BUILD_WEB:-n}
-
-if [[ "$BUILD_WEB" =~ ^[Yy]$ ]]; then
-    info "Building Web UI..."
-    cd src/web
-    npm run build
-    cd ../..
-fi
-
 # Create remote temp deploy directory
 info "Preparing temp directory on Raspberry Pi..."
 ssh "${SSH_OPTS[@]}" "$TARGET" "mkdir -p /tmp/moonboard_deploy/web"
@@ -74,15 +63,13 @@ rsync -avz --delete \
     src/ble src/led install \
     "$TARGET:/tmp/moonboard_deploy/"
 
-# Sync web build and configuration files
-if [[ -d "src/web/dist" ]]; then
-    rsync -avz --delete \
-        -e "ssh -o ControlPath=$SSH_SOCKET" \
-        src/web/dist src/web/service src/web/package.json \
-        "$TARGET:/tmp/moonboard_deploy/web/"
-else
-    warn "Local 'src/web/dist' not found. Web files will not be updated on the Pi."
-fi
+# Sync the entire web directory (excluding node_modules and dist)
+rsync -avz --delete \
+    -e "ssh -o ControlPath=$SSH_SOCKET" \
+    --exclude="node_modules" \
+    --exclude="dist" \
+    src/web/ \
+    "$TARGET:/tmp/moonboard_deploy/web/"
 
 # Execute update on the Pi
 info "Executing installer on Raspberry Pi (you may be prompted for your sudo password)..."

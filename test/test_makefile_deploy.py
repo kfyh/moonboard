@@ -29,7 +29,8 @@ def test_makefile_deploy_target(tmp_path):
     assert (moonboard_dir / "ble").is_dir()
     assert (moonboard_dir / "led").is_dir()
     assert (moonboard_dir / "install").is_dir()
-    assert (moonboard_dir / "web" / "dist").is_dir()
+    assert not (moonboard_dir / "web" / "dist").exists()
+    assert (moonboard_dir / "web" / "src").is_dir()
     assert (moonboard_dir / "web" / "service").is_dir()
     assert (moonboard_dir / "web" / "package.json").is_file()
     
@@ -52,7 +53,7 @@ def test_makefile_deploy_target(tmp_path):
     user_data_content = (tmp_path / "user-data").read_text()
     assert "#cloud-config" in user_data_content
     assert "runcmd:" in user_data_content
-    assert "- [ /boot/firmware/moonboard/install/automated-install.sh ]" in user_data_content
+    assert "- [ /bin/bash, /boot/firmware/moonboard/install/automated-install.sh ]" in user_data_content
 
     # Verify cmdline.txt clean up
     cmdline_content = cmdline_file.read_text()
