@@ -66,6 +66,46 @@ log_info() { echo -e "${BLUE}[i]${NC} $1"; }
 log_success() { echo -e "${GREEN}[✔]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 
+# --- System Packages Configuration ---
+APT_PACKAGES=(
+    python3
+    python3-pip
+    dos2unix
+    avahi-daemon
+    python3-dbus
+    python3-gi
+    bluez
+    bluetooth
+    pi-bluetooth
+    bluez-firmware
+    libjpeg-dev
+    libpng-dev
+    zlib1g-dev
+    libopenblas-dev
+    liblapack-dev
+    python3-setuptools
+)
+
+# Check if any required packages are missing and install them
+install_missing_packages() {
+    local missing_pkgs=()
+    for pkg in "${APT_PACKAGES[@]}"; do
+        if ! dpkg -s "$pkg" &>/dev/null; then
+            missing_pkgs+=("$pkg")
+        fi
+    done
+
+    if [ ${#missing_pkgs[@]} -gt 0 ]; then
+        log_info "Installing missing packages: ${missing_pkgs[*]}..."
+        wait_for_apt_locks
+        apt-get update
+        apt-get install -y "${missing_pkgs[@]}"
+    else
+        log_info "All required system packages are already installed."
+    fi
+}
+
+
 # --- Shared Bluetooth Helper Functions ---
 
 # Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)

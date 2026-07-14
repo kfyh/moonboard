@@ -30,12 +30,7 @@ for i in {1..30}; do
 done
 
 # ── System packages ──────────────────────────────────────────────────────────
-wait_for_apt_locks
-apt-get update
-apt-get install -y python3 python3-pip dos2unix avahi-daemon \
-    python3-dbus python3-gi bluez bluetooth pi-bluetooth bluez-firmware \
-    libjpeg-dev libpng-dev zlib1g-dev \
-    libopenblas-dev liblapack-dev python3-setuptools python3-pip
+install_missing_packages
 
 # Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
 configure_bluez_legacy

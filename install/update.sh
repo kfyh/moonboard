@@ -79,12 +79,8 @@ else
 fi
 
 # 3. Restart Services (only if they are installed)
-# Install pi-bluetooth and bluez-firmware if missing
-if ! dpkg -s pi-bluetooth &>/dev/null || ! dpkg -s bluez-firmware &>/dev/null; then
-    info "Installing missing pi-bluetooth and bluez-firmware packages..."
-    apt-get update
-    apt-get install -y pi-bluetooth bluez-firmware
-fi
+# Install missing system packages if any
+install_missing_packages
 
 # Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
 configure_bluez_legacy
