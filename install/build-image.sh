@@ -65,6 +65,8 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
+cd "$PROJECT_ROOT"
+
 # Ensure directories exist
 mkdir -p cache build dist
 
@@ -139,6 +141,17 @@ cleanup() {
     if [ -n "${LOOP_DEV}" ]; then
         echo "→ Detaching loop device $LOOP_DEV..."
         losetup -d "$LOOP_DEV" || true
+    fi
+
+    # 5. Fix ownership of cache, build, dist directories
+    local target_user="${SUDO_USER:-}"
+    if [ -z "$target_user" ]; then
+        target_user=$(stat -c '%U' "$PROJECT_ROOT" 2>/dev/null || echo "")
+    fi
+
+    if [ -n "$target_user" ]; then
+        echo "→ Restoring ownership of cache, build, dist to $target_user..."
+        chown -R "$target_user:$target_user" "$PROJECT_ROOT/cache" "$PROJECT_ROOT/build" "$PROJECT_ROOT/dist" || true
     fi
 }
 trap cleanup EXIT
@@ -252,10 +265,8 @@ echo "Baking packages for user: $REAL_USER"
 apt-get update
 
 # Install required system packages
-apt-get install -y python3 python3-pip dos2unix avahi-daemon \
-    python3-dbus python3-gi bluez bluetooth pi-bluetooth bluez-firmware \
-    libjpeg-dev libpng-dev zlib1g-dev \
-    libopenblas-dev liblapack-dev python3-setuptools python3-pip
+source /opt/moonboard/install/config.sh
+install_missing_packages
 
 # Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
 if [ -f /etc/bluetooth/main.conf ]; then
