@@ -16,10 +16,9 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/config.sh"
 optimize_low_memory
 
-# Colors for output
-GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
-log() { echo -e "${GREEN}[✔]${NC} $1"; }
-info() { echo -e "${BLUE}[i]${NC} $1"; }
+# Map local logging functions to shared helpers in config.sh
+log() { log_success "$1"; }
+info() { log_info "$1"; }
 
 if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root. Try: sudo $0"
@@ -88,37 +87,10 @@ if ! dpkg -s pi-bluetooth &>/dev/null || ! dpkg -s bluez-firmware &>/dev/null; t
 fi
 
 # Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
-if [ -f /etc/bluetooth/main.conf ]; then
-    info "Configuring BlueZ to use Legacy Advertising..."
-    if grep -q "^#\?ExtendedAdvertising[[:space:]]*=" /etc/bluetooth/main.conf; then
-        sed -i 's/^#\?ExtendedAdvertising[[:space:]]*=.*/ExtendedAdvertising = false/' /etc/bluetooth/main.conf
-    else
-        sed -i '/^\[General\]/a ExtendedAdvertising = false' /etc/bluetooth/main.conf
-    fi
-fi
+configure_bluez_legacy
 
 # Ensure bluetooth is not blocked by RF-kill and reset its state
-if command -v rfkill &> /dev/null; then
-    info "Checking Bluetooth RF-kill status..."
-    if rfkill list bluetooth | grep -q "yes"; then
-        info "Bluetooth is blocked by RF-kill. Unblocking..."
-        rfkill unblock bluetooth
-        sleep 1
-    fi
-fi
-if systemctl is-active --quiet bluetooth; then
-    info "Restarting system bluetooth daemon..."
-    systemctl restart bluetooth
-    sleep 2
-    
-    if command -v bluetoothctl &>/dev/null; then
-        info "Setting Bluetooth system alias to 'Moonboard A'..."
-        for controller in $(bluetoothctl list | awk '{print $2}'); do
-            bluetoothctl select "$controller" || true
-            bluetoothctl system-alias "Moonboard A" || true
-        done
-    fi
-fi
+reset_bluetooth_state
 
 info "Restarting services..."
 for svc in "$BLE_SERVICE" "$LED_SERVICE" "$WEB_SERVICE"; do

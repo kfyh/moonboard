@@ -3,7 +3,7 @@
 
 
 This project contains software and informations to build a home climbing wall with LED support compatible with the popular moonboard. 
-This fork has been done while building my home climbing wall. 
+This project was originally forked from [e-sr/moonboard](https://github.com/e-sr/moonboard) while building my home climbing wall, but has since diverged completely into a standalone implementation.
 
 ***WIP: Project done. Next step: stabilize the code. ***
 

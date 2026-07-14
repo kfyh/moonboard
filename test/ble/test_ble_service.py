@@ -323,41 +323,41 @@ def test_moon_application_registration_callbacks():
         reply_handler()
 
     mock_service_manager.RegisterApplication.side_effect = register_app_side_effect
-    mock_ad_manager.RegisterAdvertisement.side_effect = register_ad_side_effect
 
-    # Patch the dbus.Interface to return our mock managers
+    # Patch the dbus.Interface to return our mock service manager
     with patch('src.ble.moonboard_BLE_service.dbus.Interface') as mock_interface:
         mock_interface.side_effect = [mock_service_manager, mock_ad_manager]
 
-        # Patch the mainloop to prevent it from running
-        with patch('src.ble.moonboard_BLE_service.mainloop') as mock_mainloop:
-            # Patch the print function to capture the output
-            with patch('builtins.print') as mock_print:
-                # 2. Act
-                # Call main
-                main(logger=mock_logger, bus=mock_bus, adapter=mock_adapter)
+        # Patch subprocess.run and the mainloop
+        with patch('subprocess.run') as mock_run:
+            with patch('src.ble.moonboard_BLE_service.mainloop') as mock_mainloop:
+                # Patch the print function to capture the output
+                with patch('builtins.print') as mock_print:
+                    # 2. Act
+                    # Call main
+                    main(logger=mock_logger, bus=mock_bus, adapter=mock_adapter)
 
-                # 3. Assert
-                # Verify that the service manager was called with the correct arguments
-                mock_service_manager.RegisterApplication.assert_called_once_with(
-                    '/com/moonboard',
-                    {},
-                    reply_handler=register_app_cb,
-                    error_handler=register_app_error_cb
-                )
+                    # 3. Assert
+                    # Verify that the service manager was called with the correct arguments
+                    mock_service_manager.RegisterApplication.assert_called_once_with(
+                        '/com/moonboard',
+                        {},
+                        reply_handler=register_app_cb,
+                        error_handler=register_app_error_cb
+                    )
 
-                # Verify that the advertisement manager was called with the correct arguments
-                mock_ad_manager.RegisterAdvertisement.assert_called_once_with(
-                    '/org/bluez/example/advertisement0',
-                    {},
-                    reply_handler=register_ad_cb,
-                    error_handler=register_ad_error_cb
-                )
+                    # Verify that subprocess.run was called to add the advertisement
+                    # It should be called to run: btmgmt -i <adapter> add-adv ...
+                    # We assert that at least one call contains "add-adv"
+                    add_adv_calls = [
+                        c for c in mock_run.call_args_list
+                        if len(c[0]) > 0 and isinstance(c[0][0], list) and "add-adv" in c[0][0]
+                    ]
+                    assert len(add_adv_calls) == 1
 
-                # Verify that the print function was called with the correct messages
-                assert mock_print.call_args_list == [
-                    call('GATT application registered'),
-                    call('Advertisement registered')
-                ]
+                    # Verify that the print function was called with the correct message
+                    assert mock_print.call_args_list == [
+                        call('GATT application registered')
+                    ]
 
 

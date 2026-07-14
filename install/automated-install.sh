@@ -38,14 +38,7 @@ apt-get install -y python3 python3-pip dos2unix avahi-daemon \
     libopenblas-dev liblapack-dev python3-setuptools python3-pip
 
 # Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
-if [ -f /etc/bluetooth/main.conf ]; then
-    echo "Configuring BlueZ to use Legacy Advertising..."
-    if grep -q "^#\?ExtendedAdvertising[[:space:]]*=" /etc/bluetooth/main.conf; then
-        sed -i 's/^#\?ExtendedAdvertising[[:space:]]*=.*/ExtendedAdvertising = false/' /etc/bluetooth/main.conf
-    else
-        sed -i '/^\[General\]/a ExtendedAdvertising = false' /etc/bluetooth/main.conf
-    fi
-fi
+configure_bluez_legacy
 
 # ── Copy src ─────────────────────────────────────────────────────────────────
 mkdir -p "$INSTALL_TARGET"
@@ -71,27 +64,7 @@ echo "Installing Moonboard Web service..."
 bash "$INSTALL_TARGET/install/web-install.sh"
 
 # Ensure bluetooth is not blocked by RF-kill and reset its state
-if command -v rfkill &> /dev/null; then
-    echo "Checking Bluetooth RF-kill status..."
-    if rfkill list bluetooth | grep -q "yes"; then
-        echo "Bluetooth is blocked by RF-kill. Unblocking..."
-        rfkill unblock bluetooth
-        sleep 1
-    fi
-fi
-if systemctl is-active --quiet bluetooth; then
-    echo "Restarting system bluetooth daemon..."
-    systemctl restart bluetooth
-    sleep 2
-    
-    if command -v bluetoothctl &>/dev/null; then
-        echo "Setting Bluetooth system alias to 'Moonboard A'..."
-        for controller in $(bluetoothctl list | awk '{print $2}'); do
-            bluetoothctl select "$controller" || true
-            bluetoothctl system-alias "Moonboard A" || true
-        done
-    fi
-fi
+reset_bluetooth_state
 
 # Ensure services are enabled (via Makefiles) and then start them
 echo "Starting Moonboard services..."

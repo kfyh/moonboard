@@ -59,3 +59,48 @@ optimize_low_memory() {
         echo "  Set NODE_OPTIONS=\"--max-old-space-size=400\""
     fi
 }
+
+# --- Shared Logging Helpers ---
+GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; NC='\033[0m'
+log_info() { echo -e "${BLUE}[i]${NC} $1"; }
+log_success() { echo -e "${GREEN}[✔]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+
+# --- Shared Bluetooth Helper Functions ---
+
+# Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
+configure_bluez_legacy() {
+    if [ -f /etc/bluetooth/main.conf ]; then
+        log_info "Configuring BlueZ to use Legacy Advertising..."
+        if grep -q "^#\?ExtendedAdvertising[[:space:]]*=" /etc/bluetooth/main.conf; then
+            sed -i 's/^#\?ExtendedAdvertising[[:space:]]*=.*/ExtendedAdvertising = false/' /etc/bluetooth/main.conf
+        else
+            sed -i '/^\[General\]/a ExtendedAdvertising = false' /etc/bluetooth/main.conf
+        fi
+    fi
+}
+
+# Ensure bluetooth is not blocked by RF-kill and reset its state
+reset_bluetooth_state() {
+    if command -v rfkill &> /dev/null; then
+        log_info "Checking Bluetooth RF-kill status..."
+        if rfkill list bluetooth | grep -q "yes"; then
+            log_warn "Bluetooth is blocked by RF-kill. Unblocking..."
+            rfkill unblock bluetooth
+            sleep 1
+        fi
+    fi
+    if systemctl is-active --quiet bluetooth; then
+        log_info "Restarting system bluetooth daemon..."
+        systemctl restart bluetooth
+        sleep 2
+
+        if command -v bluetoothctl &>/dev/null; then
+            log_info "Setting Bluetooth system alias to 'Moonboard A'..."
+            for controller in $(bluetoothctl list | awk '{print $2}'); do
+                bluetoothctl select "$controller" &>/dev/null || true
+                bluetoothctl system-alias "Moonboard A" &>/dev/null || true
+            done
+        fi
+    fi
+}
