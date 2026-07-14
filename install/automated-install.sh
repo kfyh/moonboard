@@ -30,12 +30,10 @@ for i in {1..30}; do
 done
 
 # ── System packages ──────────────────────────────────────────────────────────
-wait_for_apt_locks
-apt-get update
-apt-get install -y python3 python3-pip dos2unix avahi-daemon \
-    python3-dbus python3-gi bluez bluetooth \
-    libjpeg-dev libpng-dev zlib1g-dev \
-    libopenblas-dev liblapack-dev python3-setuptools python3-pip
+install_missing_packages
+
+# Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
+configure_bluez_legacy
 
 # ── Copy src ─────────────────────────────────────────────────────────────────
 mkdir -p "$INSTALL_TARGET"
@@ -59,6 +57,9 @@ make -C "$INSTALL_TARGET/led" install
 # Install Moonboard Web interface and service
 echo "Installing Moonboard Web service..."
 bash "$INSTALL_TARGET/install/web-install.sh"
+
+# Ensure bluetooth is not blocked by RF-kill and reset its state
+reset_bluetooth_state
 
 # Ensure services are enabled (via Makefiles) and then start them
 echo "Starting Moonboard services..."

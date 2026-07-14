@@ -125,7 +125,7 @@ log "Files installed and dependencies ready."
 info "Step 4/4: Setting up systemd service..."
 
 # Copy the service file from web/service/
-cp "$(dirname "$SOURCE_DIR")/service/moonboard_web.service" "/etc/systemd/system/${WEB_APP_NAME}.service"
+cp "$SOURCE_DIR/service/moonboard_web.service" "/etc/systemd/system/${WEB_APP_NAME}.service"
 
 # Update the service User to match the script configuration
 sed -i "s/^User=.*/User=$WEB_USER/" "/etc/systemd/system/${WEB_APP_NAME}.service"

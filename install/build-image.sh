@@ -65,6 +65,8 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
+cd "$PROJECT_ROOT"
+
 # Ensure directories exist
 mkdir -p cache build dist
 
@@ -139,6 +141,17 @@ cleanup() {
     if [ -n "${LOOP_DEV}" ]; then
         echo "→ Detaching loop device $LOOP_DEV..."
         losetup -d "$LOOP_DEV" || true
+    fi
+
+    # 5. Fix ownership of cache, build, dist directories
+    local target_user="${SUDO_USER:-}"
+    if [ -z "$target_user" ]; then
+        target_user=$(stat -c '%U' "$PROJECT_ROOT" 2>/dev/null || echo "")
+    fi
+
+    if [ -n "$target_user" ]; then
+        echo "→ Restoring ownership of cache, build, dist to $target_user..."
+        chown -R "$target_user:$target_user" "$PROJECT_ROOT/cache" "$PROJECT_ROOT/build" "$PROJECT_ROOT/dist" || true
     fi
 }
 trap cleanup EXIT
@@ -221,8 +234,16 @@ mkdir -p "$MNT_DIR/opt/moonboard"
 mkdir -p "$BOOT_MNT/moonboard"
 
 echo "→ Copying source code..."
-tar --exclude='node_modules' --exclude='dist' --exclude='venv' --exclude='.git' --exclude='build' --exclude='cache' -cf - -C "$PROJECT_ROOT" . | tar --no-same-owner -xf - -C "$MNT_DIR/opt/moonboard/"
-tar --exclude='node_modules' --exclude='dist' --exclude='venv' --exclude='.git' --exclude='build' --exclude='cache' -cf - -C "$PROJECT_ROOT" . | tar --no-same-owner -xf - -C "$BOOT_MNT/moonboard/"
+# Copy subfolders individually to avoid 'src' prefix inside target paths
+cp -r "$PROJECT_ROOT/src/ble" "$MNT_DIR/opt/moonboard/"
+cp -r "$PROJECT_ROOT/src/led" "$MNT_DIR/opt/moonboard/"
+cp -r "$PROJECT_ROOT/src/web" "$MNT_DIR/opt/moonboard/"
+cp -r "$PROJECT_ROOT/install" "$MNT_DIR/opt/moonboard/"
+
+cp -r "$PROJECT_ROOT/src/ble" "$BOOT_MNT/moonboard/"
+cp -r "$PROJECT_ROOT/src/led" "$BOOT_MNT/moonboard/"
+cp -r "$PROJECT_ROOT/src/web" "$BOOT_MNT/moonboard/"
+cp -r "$PROJECT_ROOT/install" "$BOOT_MNT/moonboard/"
 
 # D. Offline Baking (Chroot execution)
 mkdir -p "$MNT_DIR/tmp"
@@ -244,10 +265,18 @@ echo "Baking packages for user: $REAL_USER"
 apt-get update
 
 # Install required system packages
-apt-get install -y python3 python3-pip dos2unix avahi-daemon \
-    python3-dbus python3-gi bluez bluetooth \
-    libjpeg-dev libpng-dev zlib1g-dev \
-    libopenblas-dev liblapack-dev python3-setuptools python3-pip
+source /opt/moonboard/install/config.sh
+install_missing_packages
+
+# Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
+if [ -f /etc/bluetooth/main.conf ]; then
+    echo "Configuring BlueZ to use Legacy Advertising..."
+    if grep -q "^#\?ExtendedAdvertising[[:space:]]*=" /etc/bluetooth/main.conf; then
+        sed -i 's/^#\?ExtendedAdvertising[[:space:]]*=.*/ExtendedAdvertising = false/' /etc/bluetooth/main.conf
+    else
+        sed -i '/^\[General\]/a ExtendedAdvertising = false' /etc/bluetooth/main.conf
+    fi
+fi
 
 # Remove EXTERNALLY-MANAGED python constraint to allow global installs
 rm -f /usr/lib/python3*/EXTERNALLY-MANAGED || true
@@ -284,11 +313,11 @@ rm -rf "$WEB_TARGET/node_modules" "$WEB_TARGET/dist"
 mkdir -p "$WEB_TARGET"
 
 # Copy Web UI files
-cp -r /opt/moonboard/src/web/. "$WEB_TARGET/"
+cp -r /opt/moonboard/web/. "$WEB_TARGET/"
 
 # Copy led_mapping.json if it exists
-if [ -f /opt/moonboard/src/led/led_mapping.json ]; then
-    cp /opt/moonboard/src/led/led_mapping.json "$WEB_TARGET/led_mapping.json"
+if [ -f /opt/moonboard/led/led_mapping.json ]; then
+    cp /opt/moonboard/led/led_mapping.json "$WEB_TARGET/led_mapping.json"
 fi
 
 chown -R "$REAL_USER":"$REAL_USER" "$WEB_TARGET"
@@ -302,11 +331,11 @@ sudo -u "$REAL_USER" HOME="/home/$REAL_USER" npm run build
 
 # Install services
 echo "Installing BLE and LED services..."
-make -C /opt/moonboard/src/ble install
-make -C /opt/moonboard/src/led install
+make -C /opt/moonboard/ble install
+make -C /opt/moonboard/led install
 
 echo "Installing Web service..."
-cp /opt/moonboard/src/web/service/moonboard_web.service /lib/systemd/system/moonboard_web.service
+cp /opt/moonboard/web/service/moonboard_web.service /lib/systemd/system/moonboard_web.service
 chmod 644 /lib/systemd/system/moonboard_web.service
 sed -i "s/^User=.*/User=$REAL_USER/" /lib/systemd/system/moonboard_web.service
 systemctl enable moonboard_web.service

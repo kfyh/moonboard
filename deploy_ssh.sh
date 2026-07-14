@@ -73,7 +73,7 @@ rsync -avz --delete \
 
 # Execute update on the Pi
 info "Executing installer on Raspberry Pi (you may be prompted for your sudo password)..."
-ssh "${SSH_OPTS[@]}" -t "$TARGET" "sudo /tmp/moonboard_deploy/install/update.sh"
+ssh "${SSH_OPTS[@]}" -t "$TARGET" "sudo bash /tmp/moonboard_deploy/install/update.sh"
 
 # Cleanup
 info "Cleaning up temp files on Pi..."

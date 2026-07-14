@@ -16,10 +16,9 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/config.sh"
 optimize_low_memory
 
-# Colors for output
-GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
-log() { echo -e "${GREEN}[✔]${NC} $1"; }
-info() { echo -e "${BLUE}[i]${NC} $1"; }
+# Map local logging functions to shared helpers in config.sh
+log() { log_success "$1"; }
+info() { log_info "$1"; }
 
 if [[ $EUID -ne 0 ]]; then
    echo "This script must be run as root. Try: sudo $0"
@@ -80,6 +79,15 @@ else
 fi
 
 # 3. Restart Services (only if they are installed)
+# Install missing system packages if any
+install_missing_packages
+
+# Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
+configure_bluez_legacy
+
+# Ensure bluetooth is not blocked by RF-kill and reset its state
+reset_bluetooth_state
+
 info "Restarting services..."
 for svc in "$BLE_SERVICE" "$LED_SERVICE" "$WEB_SERVICE"; do
     if [[ $(systemctl show -p LoadState "$svc" --value) != "not-found" ]]; then

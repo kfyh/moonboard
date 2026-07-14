@@ -240,9 +240,24 @@ def test_mock_full_execution(mock_env_dir):
     env = setup_path_env(mock_env_dir, isolate=False)
     env["MOCK_EUID"] = "0"
     env["MOCK_LOOP_CONTROL"] = loop_control
-    
+    env["PROJECT_ROOT"] = mock_env_dir
+
+    # Symlink project folders to mock_env_dir so script's cp works
+    os.makedirs(os.path.join(mock_env_dir, "src"), exist_ok=True)
+    for folder in ["src/ble", "src/led", "src/web", "install"]:
+        os.symlink(
+            os.path.abspath(folder),
+            os.path.join(mock_env_dir, folder)
+        )
+
     script_abs_path = os.path.abspath(SCRIPT_PATH)
-    
-    res = subprocess.run(["bash", script_abs_path], env=env, cwd=mock_env_dir, capture_output=True, text=True)
+
+    res = subprocess.run(
+        ["bash", script_abs_path],
+        env=env,
+        cwd=mock_env_dir,
+        capture_output=True,
+        text=True
+    )
     assert res.returncode == 0
     assert "Success! Customized offline image is ready" in res.stdout

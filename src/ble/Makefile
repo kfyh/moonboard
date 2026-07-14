@@ -1,5 +1,10 @@
 #api-doc:
-#	docker run --rm -it -v $(PWD)/ble_api.yaml:/app/asyncapi.yml -v $(PWD)/api:/app/output asyncapi/generator  -o /app/output /app/asyncapi.yml @asyncapi/html-template --force-write
+#	mkdir -p $(PWD)/api
+#	@if command -v podman >/dev/null 2>&1; then \
+#		podman run --userns=keep-id --rm -it -v $(PWD)/ble_api.yaml:/app/asyncapi.yml -v $(PWD)/api:/app/output asyncapi/generator -o /app/output /app/asyncapi.yml @asyncapi/html-template --force-write; \
+#	else \
+#		docker run -u "$$(id -u):$$(id -g)" --rm -it -v $(PWD)/ble_api.yaml:/app/asyncapi.yml -v $(PWD)/api:/app/output asyncapi/generator -o /app/output /app/asyncapi.yml @asyncapi/html-template --force-write; \
+#	fi
 
 .PHONY: install uninstall
 
