@@ -1,4 +1,4 @@
-BLUEZ_SERVICE_NAME = 'org.bluez'
+﻿BLUEZ_SERVICE_NAME = 'org.bluez'
 GATT_MANAGER_IFACE = 'org.bluez.GattManager1'
 DBUS_OM_IFACE = 'org.freedesktop.DBus.ObjectManager'
 DBUS_PROP_IFACE = 'org.freedesktop.DBus.Properties'

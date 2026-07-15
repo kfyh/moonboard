@@ -25,8 +25,15 @@ class MoonBoard:
                     led_mapping=DEFAULT_LED_MAPPING_FILE, 
                     brightness=DEFAULT_BRIGHTNESS):
         #read led mapping
-        led_mappimng_abs = os.path.join(os.path.dirname(__file__), led_mapping)
-        with open(led_mappimng_abs) as json_file:
+        if os.path.isabs(led_mapping):
+            if os.path.exists(led_mapping):
+                mapping_path = led_mapping
+            else:
+                mapping_path = os.path.join(os.path.dirname(__file__), self.DEFAULT_LED_MAPPING_FILE)
+        else:
+            mapping_path = os.path.join(os.path.dirname(__file__), led_mapping)
+
+        with open(mapping_path) as json_file:
             try:
                 data = json.load(json_file)
             except Exception as e:

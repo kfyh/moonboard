@@ -20,6 +20,7 @@ def test_led_service_integration():
          patch('moonboard.MoonBoard') as MockMoonBoard, \
          patch('sys.argv', [script_path, '--driver_type', 'SimPixel']), \
          patch('time.sleep'), \
+         patch('requests.post') as mock_post, \
          patch.dict('sys.modules', {'RPi': MagicMock(), 'RPi.GPIO': MagicMock()}):
 
         # Setup mock objects
@@ -31,9 +32,9 @@ def test_led_service_integration():
 
         callback_container = {}
         def capture_callback(*args, **kwargs):
-            callback_container['callback'] = args[1]
+            callback_container['callback'] = args[0]
 
-        mock_proxy.connect_to_signal.side_effect = capture_callback
+        mock_bus.add_signal_receiver.side_effect = capture_callback
 
         # run_path returns the module's globals, which we can use to inspect state
         module_globals = runpy.run_path(script_path, run_name='__main__')
@@ -42,8 +43,13 @@ def test_led_service_integration():
         MockMoonBoard.assert_called_once_with('SimPixel', 'led_mapping.json')
 
         mock_bus.get_object.assert_called_once_with('com.moonboard', '/com/moonboard')
-        mock_proxy.connect_to_signal.assert_called_once()
-        assert 'new_problem' in mock_proxy.connect_to_signal.call_args[0]
+        mock_bus.add_signal_receiver.assert_called_once_with(
+            ANY,
+            signal_name='new_problem',
+            dbus_interface='com.moonboard',
+            bus_name='com.moonboard',
+            path='/com/moonboard'
+        )
 
         mock_loop.run.assert_called_once()
 

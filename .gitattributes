@@ -1,0 +1,9 @@
+# Set default behavior to automatic text conversion
+* text=auto
+
+# Force LF line endings for shell scripts and Makefiles
+*.sh text eol=lf
+Makefile text eol=lf
+*.py text eol=lf
+*.service text eol=lf
+*.json text eol=lf

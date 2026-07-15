@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=admin
 WorkingDirectory=/home/moonboard_web
-ExecStart=/usr/bin/node /home/moonboard_web/api/index.js
+ExecStart=/usr/bin/node /home/moonboard_web/dist/api/index.js
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
@@ -14,7 +14,7 @@ StandardError=journal
 SyslogIdentifier=moonboard_web
 Environment=NODE_ENV=production
 Environment=PORT=3000
-Environment=UI_DIR=/home/moonboard_web/ui
+Environment=UI_DIR=/home/moonboard_web/dist/ui
 
 [Install]
 WantedBy=multi-user.target

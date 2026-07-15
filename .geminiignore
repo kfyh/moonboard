@@ -1,0 +1,17 @@
+# Exclude Python virtual environment
+venv/
+/venv/
+**/venv/**
+
+# Exclude Node dependencies
+node_modules/
+/node_modules/
+**/node_modules/**
+
+# Exclude build and cache artifacts
+build/
+/build/
+dist/
+/dist/
+cache/
+/cache/

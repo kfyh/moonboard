@@ -42,6 +42,13 @@ def test_decode_problem_string():
     assert decoded_multiple['MOVES'] == ["B18"]
     assert decoded_multiple['TOP'] == ["B1", "C1"]
 
+    # Test with new intermediate hold types R, L, M
+    problem_string_new_holds = "S0,R18,L35,M53,E71"
+    decoded_new_holds = decode_problem_string(problem_string_new_holds, "")
+    assert decoded_new_holds['START'] == ["A1"]
+    assert decoded_new_holds['MOVES'] == ["B18", "B1", "C18"]  # R18 -> B18, L35 -> B1, M53 -> C18
+    assert decoded_new_holds['TOP'] == ["D1"]                  # E71 -> D1
+
     # Test with empty string
     assert decode_problem_string("", "") == {'START':[],'MOVES':[],'TOP':[], 'FLAGS':[""]}
 

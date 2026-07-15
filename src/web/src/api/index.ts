@@ -1,41 +1,63 @@
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
+import { UI_DIR } from './config';
+import { apiRouter } from './routes/api';
 
-const app = express();
+export const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../ui')));
+app.use(express.static(UI_DIR));
 
-// --- Grid State ---
-let holdsState: unknown = null;
+// Mount the modular API router
+app.use('/api', apiRouter);
 
-// Endpoint for the bluetooth service to POST grid data to
-app.post('/api/holds', (req, res) => {
-  holdsState = req.body;
-  res.sendStatus(200);
+// Explicit root route serving the React UI
+app.get('/', (req, res) => {
+  res.sendFile(path.join(UI_DIR, 'index.html'));
 });
 
-// Endpoint for the React app to GET the current grid state
-app.get('/api/holds', (req, res) => {
-  if (!holdsState) {
-    res.json({});
-    return;
+// Catch-all: defer unmatched routes to React (Express 4 & 5 compatible regex)
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(UI_DIR, 'index.html'));
+});
+
+// Global error handler middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Global error handler caught an error:', err);
+  if (res.headersSent) {
+    return next(err);
   }
-  res.json(holdsState);
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
-app.get('/api', (req, res) => {
-  res.send('Hello World!');
-});
+let server: any;
 
-// Catch-all: defer unmatched routes to React
-app.get(/(.*)/, (req, res) => {
-  res.sendFile(path.join(__dirname, '../ui/index.html'));
-});
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(Number(port), '0.0.0.0', () => {
+    console.log(`Server is running on http://0.0.0.0:${port}`);
+  });
 
-app.listen(Number(port), '0.0.0.0', () => {
-  console.log(`Server is running on http://0.0.0.0:${port}`);
-});
+  // Graceful shutdown logic for SIGTERM / SIGINT
+  const gracefulShutdown = (signal: string) => {
+    console.log(`Received ${signal}. Shutting down server gracefully...`);
+    if (server) {
+      server.close(() => {
+        console.log('Http server closed.');
+        process.exit(0);
+      });
+      // Force exit after 10s if server close hangs
+      setTimeout(() => {
+        console.error('Could not close connections in time, forcefully shutting down');
+        process.exit(1);
+      }, 10000);
+    } else {
+      process.exit(0);
+    }
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+}

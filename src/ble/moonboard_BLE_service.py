@@ -41,8 +41,7 @@ class MoonAdvertisement(Advertisement):
     def __init__(self, bus, index):
         Advertisement.__init__(self, bus, index, 'peripheral')
         self.add_service_uuid(UART_SERVICE_UUID)
-        self.add_local_name(LOCAL_NAME)
-#        self.include_tx_power = True
+        # self.add_local_name(LOCAL_NAME)
 
 class MoonApplication(dbus.service.Object):
     IFACE = "com.moonboard.method"
@@ -120,6 +119,20 @@ def main(logger, bus, adapter):
 
     logger.info("Using Bluetooth adapter: "+ str(adapter))
 
+    # Set the system alias dynamically on startup to ensure it is always set
+    try:
+        import subprocess
+        res = subprocess.run(["bluetoothctl", "list"], stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=5)
+        for line in res.stdout.splitlines():
+            parts = line.split()
+            if len(parts) >= 2:
+                mac = parts[1]
+                logger.info(f"Setting Bluetooth system alias to '{LOCAL_NAME}' for controller {mac}...")
+                subprocess.run(["bluetoothctl", "select", mac], stdin=subprocess.DEVNULL, capture_output=True, timeout=3)
+                subprocess.run(["bluetoothctl", "system-alias", LOCAL_NAME], stdin=subprocess.DEVNULL, capture_output=True, timeout=3)
+    except Exception as e:
+        logger.warning(f"Could not set Bluetooth system alias: {e}")
+
     try:
         bus_name = dbus.service.BusName(SERVICE_NAME,
                                         bus=bus,
@@ -144,10 +157,27 @@ def main(logger, bus, adapter):
                                         reply_handler=register_app_cb,
                                         error_handler=register_app_error_cb)
 
-    advertisement = MoonAdvertisement(bus, 0)
-    ad_manager.RegisterAdvertisement(advertisement.get_path(), {},
-                                     reply_handler=register_ad_cb,
-                                     error_handler=register_ad_error_cb)
+    import subprocess
+    adapter_index = str(adapter).split('/')[-1]
+    logger.info(f"Registering BLE advertisement via btmgmt on {adapter_index}...")
+    
+    # 1. Attempt to remove any existing advertisement on instance 1 (failsafe)
+    try:
+        subprocess.run(["btmgmt", "-i", adapter_index, "rm-adv", "1"], input="quit\n", text=True, capture_output=True, timeout=3)
+    except Exception as e:
+        logger.warning(f"rm-adv skipped or timed out: {e}")
+
+    # 2. Add the advertisement directly to kernel
+    try:
+        subprocess.run([
+            "btmgmt", "-i", adapter_index, "add-adv",
+            "-c", "-g", "-n",
+            "-u", UART_SERVICE_UUID,
+            "1"
+        ], input="quit\n", text=True, capture_output=True, check=True, timeout=5)
+        logger.info("BLE advertisement registered successfully via btmgmt.")
+    except Exception as e:
+        logger.error(f"Failed to register advertisement via btmgmt: {e}")
 
     # Run the loop
     mainloop.run()
@@ -191,3 +221,8 @@ if __name__ == '__main__':
     finally:
         if mainloop and mainloop.is_running():
             mainloop.quit()
+        try:
+            import subprocess
+            subprocess.run(["btmgmt", "rm-adv", "1"], input="quit\n", text=True, capture_output=True, timeout=3)
+        except Exception:
+            pass

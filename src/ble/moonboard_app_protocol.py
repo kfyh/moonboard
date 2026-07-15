@@ -25,7 +25,7 @@ def decode_problem_string(s, flags):
         t,p = h[0],position_trans(int(h[1:]), num_rows)
         if t=='S':
             holds['START'].append(p)
-        if t=='P':
+        if t in ('P', 'R', 'L', 'M'):
             holds['MOVES'].append(p)
         if t=='E':
             holds['TOP'].append(p)
@@ -55,6 +55,8 @@ class UnstuffSequence():
         try:
             s = bytearray.fromhex(ba).decode(errors="ignore")
             self.logger.debug("incoming bytes:"+str(s))
+            if not s:
+                return None
             
             if s[0] == '~' and s[-1] == '*':
                 # Flag processing

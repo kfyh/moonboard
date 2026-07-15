@@ -29,6 +29,12 @@ def turn_off_leds():
     global timeout_id
     logging.getLogger('run').info("Inactivity timeout: Turning off LEDs")
     MOONBOARD.clear()
+    try:
+        response = requests.post("http://localhost:3000/api/holds", json={})
+        if response.status_code == 200:
+            logging.getLogger('run').info("Successfully cleared web visualizer on timeout")
+    except Exception as e:
+        logging.getLogger('run').error(f"Failed to clear web visualizer on timeout: {e}")
     timeout_id = None
     return False
 
@@ -107,7 +113,13 @@ if __name__ == "__main__":
                 logger.info("Waiting for com.moonboard service...")
                 time.sleep(2)
 
-        proxy.connect_to_signal('new_problem', partial(new_problem_cb, MOONBOARD))
+        bus.add_signal_receiver(
+            partial(new_problem_cb, MOONBOARD),
+            signal_name='new_problem',
+            dbus_interface='com.moonboard',
+            bus_name='com.moonboard',
+            path='/com/moonboard'
+        )
         loop = GLib.MainLoop()
         dbus.set_default_main_loop(dbml)
         loop.run()

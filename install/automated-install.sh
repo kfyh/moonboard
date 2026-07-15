@@ -12,6 +12,7 @@ REAL_USER=$(id -nu 1000 || echo "pi")
 
 # Load shared config
 source "$(dirname "$0")/config.sh"
+optimize_low_memory
 
 PROJECT_DIR="/boot/firmware/moonboard"
 
@@ -29,11 +30,10 @@ for i in {1..30}; do
 done
 
 # ── System packages ──────────────────────────────────────────────────────────
-apt-get update
-apt-get install -y python3 python3-pip dos2unix avahi-daemon \
-    python3-dbus python3-gi bluez bluetooth \
-    libjpeg-dev libpng-dev zlib1g-dev \
-    libopenblas-dev liblapack-dev python3-setuptools python3-pip
+install_missing_packages
+
+# Configure BlueZ to use Legacy Advertising (disables ExtendedAdvertising)
+configure_bluez_legacy
 
 # ── Copy src ─────────────────────────────────────────────────────────────────
 mkdir -p "$INSTALL_TARGET"
@@ -54,14 +54,22 @@ sudo raspi-config nonint do_spi 0
 make -C "$INSTALL_TARGET/ble" install
 make -C "$INSTALL_TARGET/led" install
 
+# Install Moonboard Web interface and service
+echo "Installing Moonboard Web service..."
+bash "$INSTALL_TARGET/install/web-install.sh"
+
+# Ensure bluetooth is not blocked by RF-kill and reset its state
+reset_bluetooth_state
+
 # Ensure services are enabled (via Makefiles) and then start them
 echo "Starting Moonboard services..."
 sudo systemctl daemon-reload
 sudo systemctl start "$BLE_SERVICE"
 sudo systemctl start "$LED_SERVICE"
+sudo systemctl start "$WEB_SERVICE"
 
 # Quick verification check
-sudo systemctl is-active "$BLE_SERVICE" "$LED_SERVICE"
+sudo systemctl is-active "$BLE_SERVICE" "$LED_SERVICE" "$WEB_SERVICE"
 
 echo "Installation complete. This script will not run again."
 # No need to edit cmdline.txt or delete itself; 
